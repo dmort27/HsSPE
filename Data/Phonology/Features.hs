@@ -5,6 +5,8 @@ import qualified Data.Map as Map
 
 import Data.List (intercalate)
 
+import Control.Monad (foldM)
+
 import Text.ParserCombinators.Parsec
 
 data FValue = Plus | Minus | Unspec
@@ -27,6 +29,8 @@ data FMatrix = FMatrix (Map String FValue)
              deriving (Eq, Ord)
 instance Show FMatrix where
     show (FMatrix fm) = (\x -> "[" ++ x ++ "]") $ intercalate "," $ map (\(k,v) -> (show v) ++ k) $ Map.toAscList fm
+
+type Segment = (String, FMatrix)
 
 infixr 5 |>|
 infixr 5 |?|
@@ -64,13 +68,15 @@ fValue = oneOf "+-0" >>= return . read . (:[])
 feature :: GenParser Char st (String, FValue)
 feature = spaces >> fValue >>= \v -> (fName >>= \k -> spaces >> return (k, v))
 
-readIPA :: String -> [String]
+readIPA :: String -> [Segment]
 readIPA input = case parse ipaString "feature matrix" input of
                   Right fm -> fm
                   Left e -> error $ show e
 
-ipaString :: GenParser Char st [String]
+ipaString :: GenParser Char st [Segment]
 ipaString = many ipaSegment
+
+ipaSegment = choice (map (\(l,fs) -> try $ string l >> return (l, readFMatrix fs)) segments)
 
 segmentFMatrices segs = [(seg, readFMatrix fs) | (seg, fs) <- segs]
 
