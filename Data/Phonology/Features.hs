@@ -68,16 +68,18 @@ fValue = oneOf "+-0" >>= return . read . (:[])
 feature :: GenParser Char st (String, FValue)
 feature = spaces >> fValue >>= \v -> (fName >>= \k -> spaces >> return (k, v))
 
-readIPA :: String -> [Segment]
-readIPA input = case parse ipaString "feature matrix" input of
+readIPA :: [Segment] -> String -> [Segment]
+readIPA segs input = case parse (ipaString segs) "feature matrix" input of
                   Right fm -> fm
                   Left e -> error $ show e
 
-ipaString :: GenParser Char st [Segment]
-ipaString = many ipaSegment
+ipaString :: [Segment] -> GenParser Char st [Segment]
+ipaString segs = many (ipaSegment segs)
 
-ipaSegment = choice (map (\(l,fs) -> try $ string l >> return (l, readFMatrix fs)) segments)
+ipaSegment :: [(String, FMatrix)] -> GenParser Char st (String, FMatrix)
+ipaSegment segs = choice (map (\(l,fs) -> try $ string l >> return (l, fs)) segs)
 
+segmentFMatrices :: [(String, String)] -> [(String, FMatrix)]
 segmentFMatrices segs = [(seg, readFMatrix fs) | (seg, fs) <- segs]
 
 segments = [ ("p", "[-syl,-son,-cont,-nas,0high,0back,0low,-cor,-dor]")
