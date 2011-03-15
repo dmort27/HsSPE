@@ -1,0 +1,10 @@
+| Diacritic | Changes        |
+|-----------+----------------|
+| ʷ         | [+back,+round] |
+| ʲ         | [+hi]          |
+| ˤ         | [+low,+back]   |
+| ˠ         | [+hi,+back]    |
+| ʰ         | [-voi,-cg,+sg] |
+| ʼ         | [-voi,+cg,-sg] |
+| ̃         | [+nas]         |
+| ̥         | [-voi]         |
