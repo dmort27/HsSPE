@@ -5,36 +5,34 @@ import Data.Ord (comparing)
 
 import Text.ParserCombinators.Parsec
 
+type Syllable = (String, String, String)
+type ONC = ([String], [String], [String])
 
-syllabifyString input = case parse ipaSyllable "(unknown)" input of
+syllabifyString onc input = case parse (ipaSyllable onc) "(unknown)" input of
                           Right fm -> fm
                           Left e -> error $ show e
 
---ipaSyllable :: GenParser Char st [String]
---ipaSyllable = ipaOnset >>= (\ons -> ipaNucleus >>= (\nuc -> ipaNext >>= (\(cod, syls) -> return ([ons, nuc, cod]++syls))))
+ipaSyllable :: ONC -> GenParser Char st [Syllable]
+ipaSyllable onc@(os, _, _) = (ipaOnset os) >>= (\ons -> (ipaRhyme onc) >>= (\((nuc, cod), syls) -> return ((ons, nuc, cod):syls)))
 
-ipaSyllable :: GenParser Char st [[String]]
-ipaSyllable = ipaOnset >>= (\ons -> ipaRhyme >>= (\([nuc, cod], syls) -> return ([[ons, nuc, cod]] ++ syls)))
+ipaOnset :: [String] -> GenParser Char st String
+ipaOnset os = choice $ map (try . string) os
 
-ipaOnset :: GenParser Char st String
-ipaOnset = choice $ map (try . string) onsets
+ipaRhyme :: ONC -> GenParser Char st ((String, String), [Syllable])
+ipaRhyme onc@(_, ns, _) = choice (map (\s -> try (string s >>= \nuc -> (ipaNext onc >>= \(cod, syls) -> return ((nuc, cod), syls)))) ns)
 
-ipaNucleus :: GenParser Char st String
-ipaNucleus = choice $ map (try . string) nuclei
+ipaNext :: ONC -> GenParser Char st (String, [Syllable])
+ipaNext onc@(_, _, cs) = (eof >> return ("", []))
+          <|> try (ipaSyllable onc >>= \syls -> return ("", syls))
+          <|> try (ipaCoda cs >>= \coda -> eof >> return (coda, []))
+          <|> try (ipaCoda cs >>= \coda -> (ipaSyllable onc >>= \syls -> return (coda, syls)))
 
-ipaRhyme :: GenParser Char st ([String], [[String]])
-ipaRhyme = choice (map (\s -> try (string s >>= \nuc -> (ipaNext >>= \(cod, syls) -> return ([nuc, cod], syls)))) nuclei)
-
-ipaNext :: GenParser Char st (String, [[String]])
-ipaNext = (eof >> return ("", []))
-          <|> try (ipaSyllable >>= \syls -> return ("", syls))
-          <|> try (ipaCoda >>= \coda -> eof >> return (coda, []))
-          <|> try (ipaCoda >>= \coda -> (ipaSyllable >>= \syls -> return (coda, syls)))
-ipaCoda = choice $ map (try . string) codas
+ipaCoda :: [String] -> GenParser Char st String
+ipaCoda cs = choice $ map (try . string) cs
 
 onsets = reverse $ sortBy (comparing length) 
          ["","p","t","k","r","m","n","ŋ","s","j","w","pr","tr","kr","sp","st","sk","sn"]
-nuclei = reverse $ sortBy (comparing length) 
+nuclei = sortBy (comparing length) 
          ["a","e","i","o","u","aw","aj"]
 codas = reverse $ sortBy (comparing length) 
         ["", "p","t","k","r","m","n","ŋ","s"]
