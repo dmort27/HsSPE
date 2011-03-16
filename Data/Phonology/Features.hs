@@ -1,5 +1,6 @@
 module Features where
 
+import Data.Maybe (fromJust)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -10,15 +11,18 @@ import Control.Monad (foldM)
 
 import Text.ParserCombinators.Parsec
 
-data FValue = Plus | Minus | Unspec
+import Generics.Pointless.Combinators ((><))
+
+data FValue = Plus | Minus | Unspec | Var String
               deriving (Eq, Ord)
 instance Show FValue where
     show Plus = "+"
     show Minus = "-"
     show Unspec = "0"
+    show (Var s) = s
 instance Read FValue where
     readsPrec _ value =
-        tryParse [('+', Plus), ('-', Minus), ('0',Unspec)]
+        tryParse ([('+', Plus), ('-', Minus), ('0',Unspec)] ++ [(s, Var (s:[])) | s <- ['α'..'ω']])
             where
               tryParse [] = []
               tryParse ((attempt, result):xs) =
@@ -30,6 +34,8 @@ data FMatrix = FMatrix (Map String FValue)
              deriving (Eq, Ord)
 instance Show FMatrix where
     show (FMatrix fm) = (\x -> "[" ++ x ++ "]") $ intercalate "," $ map (\(k,v) -> (show v) ++ k) $ Map.toAscList fm
+
+fmapFM f (FMatrix fm) = FMatrix $ f fm
 
 type Segment = (String, FMatrix)
 
@@ -64,7 +70,7 @@ fName :: GenParser Char st String
 fName = many (oneOf ['a'..'z'])
 
 fValue :: GenParser Char st FValue
-fValue = oneOf "+-0" >>= return . read . (:[])
+fValue = oneOf ("+-0" ++ ['α'..'ω']) >>= return . read . (:[])
 
 feature :: GenParser Char st (String, FValue)
 feature = spaces >> fValue >>= \v -> (fName >>= \k -> spaces >> return (k, v))
@@ -84,11 +90,25 @@ ipaDiacritics :: [(String, FMatrix -> FMatrix)] -> (String, FMatrix) -> GenParse
 ipaDiacritics dias (seg, fm) = many (choice (map (\(d, f) -> try $ string d >> return (d, f)) dias)) >>=
                           return . foldr (\(d, f) (seg', fm') -> (seg' ++ d, f fm')) (seg, fm)
                                     
-segmentFMatrices :: [(String, String)] -> [(String, FMatrix)]
-segmentFMatrices segs = reverse $ sortBy (comparing (length . fst)) [(seg, readFMatrix fs) | (seg, fs) <- segs]
+toFMatrixPairs :: [(String, String)] -> [(String, FMatrix)]
+toFMatrixPairs segs = reverse $ sortBy (comparing (length . fst)) [(seg, readFMatrix fs) | (seg, fs) <- segs]
 
 diacriticFunctions :: [(String, String)] -> [(String, (FMatrix -> FMatrix))]
 diacriticFunctions dias = [(dia, \fm -> fm |>| (readFMatrix fts)) | (dia, fts) <- dias]
+
+includeFts :: [String] -> (String, FMatrix) -> (String, FMatrix)
+includeFts fts = id >< fmapFM (Map.filterWithKey (\k _ -> k `elem` fts))
+
+defFeatures = ["syl","son","cons","cont","delrel","lat","nas","voi","cg","sg","ant","cor","distr","hi","lo","back","round","tense"]
+
+defDiacritics = diacriticFunctions diacritics
+defSegments = map (includeFts defFeatures) $ toFMatrixPairs segments
+defMacros = map (includeFts defFeatures) $ toFMatrixPairs macros
+
+getDefMacro :: Char -> FMatrix
+getDefMacro m = fromJust $ lookup (m:[]) defMacros
+
+defReadIPA = readIPA defSegments defDiacritics
 
 diacritics = [ ("ʷ", "[+back,+round]")
              , ("ʲ", "[+hi]")
@@ -99,6 +119,11 @@ diacritics = [ ("ʷ", "[+back,+round]")
              , ("̃", "[+nas]")
              , ("̥", "[-voi]")
              ]
+
+macros = [ ("C", "[-syl]")
+         , ("V", "[+syl]")
+         , ("N", "[-syl,+nas]")
+         ]
 
 segments = [ ("p","[-syl,-son,+cons,-cont,-delrel,-lat,-nas,-voi,-cg,-sg,+ant,-cor,0distr,-hi,-lo,-back,-round,0tense]")
            , ("pf","[-syl,-son,+cons,-cont,+delrel,-lat,-nas,-voi,-cg,-sg,+ant,-cor,0distr,-hi,-lo,-back,-round,0tense]")
