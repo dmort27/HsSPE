@@ -3,7 +3,8 @@ module Features where
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Data.List (intercalate)
+import Data.List (intercalate, sortBy)
+import Data.Ord (comparing)
 
 import Control.Monad (foldM)
 
@@ -68,19 +69,26 @@ fValue = oneOf "+-0" >>= return . read . (:[])
 feature :: GenParser Char st (String, FValue)
 feature = spaces >> fValue >>= \v -> (fName >>= \k -> spaces >> return (k, v))
 
-readIPA :: [Segment] -> String -> [Segment]
-readIPA segs input = case parse (ipaString segs) "feature matrix" input of
+readIPA :: [Segment] -> [(String, FMatrix -> FMatrix)] -> String -> [Segment]
+readIPA segs dias input = case parse (ipaString segs dias) "feature matrix" input of
                   Right fm -> fm
                   Left e -> error $ show e
 
-ipaString :: [Segment] -> GenParser Char st [Segment]
-ipaString segs = many (ipaSegment segs)
+ipaString :: [Segment] -> [(String, FMatrix -> FMatrix)] -> GenParser Char st [Segment]
+ipaString segs dias = many (ipaSegment segs >>= ipaDiacritics dias)
 
 ipaSegment :: [(String, FMatrix)] -> GenParser Char st (String, FMatrix)
 ipaSegment segs = choice (map (\(l,fs) -> try $ string l >> return (l, fs)) segs)
 
+ipaDiacritics :: [(String, FMatrix -> FMatrix)] -> (String, FMatrix) -> GenParser Char st (String, FMatrix)
+ipaDiacritics dias (seg, fm) = many (choice (map (\(d, f) -> try $ string d >> return (d, f)) dias)) >>=
+                          return . foldr (\(d, f) (seg', fm') -> (seg' ++ d, f fm')) (seg, fm)
+                                    
 segmentFMatrices :: [(String, String)] -> [(String, FMatrix)]
-segmentFMatrices segs = [(seg, readFMatrix fs) | (seg, fs) <- segs]
+segmentFMatrices segs = reverse $ sortBy (comparing (length . fst)) [(seg, readFMatrix fs) | (seg, fs) <- segs]
+
+diacriticFunctions :: [(String, String)] -> [(String, (FMatrix -> FMatrix))]
+diacriticFunctions dias = [(dia, \fm -> fm |>| (readFMatrix fts)) | (dia, fts) <- dias]
 
 diacritics = [ ("ʷ", "[+back,+round]")
              , ("ʲ", "[+hi]")
@@ -155,7 +163,7 @@ segments = [ ("p","[-syl,-son,+cons,-cont,-delrel,-lat,-nas,-voi,-cg,-sg,+ant,-c
            , ("o","[+syl,+son,-cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-cor,-distr,-hi,-lo,+back,+round,+tense]")
            , ("æ","[+syl,+son,-cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-cor,-distr,-hi,+lo,-back,-round,+tense]")
            , ("ɶ","[+syl,+son,-cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-cor,-distr,-hi,+lo,-back,+round,+tense]")
-           , ("ɑ","[+syl,+son,-cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-cor,-distr,-hi,+lo,+back,-round,+tense]")
+           , ("a","[+syl,+son,-cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-cor,-distr,-hi,+lo,+back,-round,+tense]")
            , ("ɒ","[+syl,+son,-cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-cor,-distr,-hi,+lo,+back,+round,+tense]")
            , ("ɪ","[+syl,+son,-cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-cor,-distr,+hi,-lo,-back,-round,-tense]")
            , ("ʏ","[+syl,+son,-cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-cor,-distr,+hi,-lo,-back,+round,-tense]")
