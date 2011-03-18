@@ -8,17 +8,18 @@ import Text.ParserCombinators.Parsec
 
 type Rewrite = Segment -> Segment
 
-data RuleTokens = PRLit String Rewrite 
+data RuleToken = PRLit String Rewrite 
                 | PRFMat FMatrix Rewrite
                 | PRMacro FMatrix Rewrite
-                | PRGroup [RuleTokens]
-                | PROneOrMore [RuleTokens]
-                | PRZeroOrMore [RuleTokens]
-                | PRDisjunction [[RuleTokens]]
-                | Zero [Segment]
+                | PRGroup [RuleToken]
+                | PROneOrMore [RuleToken]
+                | PRZeroOrMore [RuleToken]
+                | PRDisjunction [[RuleToken]]
+                | PRDelete [RuleToken]
+                | Insert [RuleToken]
                 | PRBoundary
 
-instance Show RuleTokens where
+instance Show RuleToken where
     show (PRLit s _) = "(PRLit " ++ s ++ " f)"
     show (PRFMat fm _) = "(PRFMat " ++ show fm ++ " f)"
     show (PRMacro fm _) = "(PRMacro " ++ show fm ++ " f)"
@@ -26,27 +27,36 @@ instance Show RuleTokens where
     show (PROneOrMore grp) = "(PROneOrMore " ++ show grp ++ ")+"
     show (PRZeroOrMore grp) = "(PRZeroOrMore " ++ show grp ++ ")+"
     show (PRDisjunction grps) = "(PRDisjunction {" ++ show grps ++ "}"
-    show (Zero _) = "Zero"
     show (PRBoundary) = "#"
 
-readRule input = case parse envToken "rule" input of
+readRule input = case runParser envToken (defSegments, defMacros, defDiacritics) "rule" input of
                       Right fm -> fm
                       Left e -> error $ show e
 
-envToken :: GenParser Char st RuleTokens
-envToken = try (char '#' >> return PRBoundary)
-           <|> try (oneOf "CVN" >>= \m -> return (PRFMat (fromJust (lookup (m:[]) defMacros)) id))
-           <|> try (ipaSegment defSegments >>= ipaDiacritics defDiacritics >>= \(lit, fm) -> return (PRLit lit id))
-           <|> try (fMatrix >>= \fm -> return (PRFMat fm id))
-           <|> (try envMany1)
-           <|> (try envMany0)
-           <|> (try envGroup)
+envToken :: GenParser Char RuleState RuleToken
+envToken = try envBoundary <|> try envMacro <|> try envIPASegment <|> try envFMatrix <|> try envMany1 <|> try envMany0 <|> try envGroup
 
-envGroup :: GenParser Char st RuleTokens
+envBoundary :: GenParser Char RuleState RuleToken
+envBoundary = char '#' >> return PRBoundary
+
+envFMatrix :: GenParser Char RuleState RuleToken
+envFMatrix = fMatrix >>= \fm -> return (PRFMat fm id)
+
+envMacro :: GenParser Char RuleState RuleToken
+envMacro = getState >>= \(_, ms, _) -> 
+           (oneOf (map (head . fst) ms) >>= \m -> return (PRFMat (fromJust (lookup (m:[]) ms)) id))
+
+envIPASegment :: GenParser Char RuleState RuleToken
+envIPASegment = ipaSegment >>= ipaDiacritics >>= \(lit, fm) -> return (PRLit lit id)
+
+envGroup :: GenParser Char RuleState RuleToken
 envGroup = char '(' >> spaces >> (many1 envToken) >>= \toks -> (spaces >> char ')' >> return (PRGroup toks))
 
-envMany1 :: GenParser Char st RuleTokens
+envMany1 :: GenParser Char RuleState RuleToken
 envMany1 = envGroup >>= \(PRGroup grp) -> string "_1" >> spaces >> return (PROneOrMore grp)
 
-envMany0 :: GenParser Char st RuleTokens
+envMany0 :: GenParser Char RuleState RuleToken
 envMany0 = envGroup >>= \(PRGroup grp) -> string "_0" >> spaces >> return (PRZeroOrMore grp)
+
+editArrow :: GenParser Char RuleState ()
+editArrow = spaces >> string "->" >> spaces

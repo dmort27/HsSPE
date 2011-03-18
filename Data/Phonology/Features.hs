@@ -38,6 +38,7 @@ instance Show FMatrix where
 fmapFM f (FMatrix fm) = FMatrix $ f fm
 
 type Segment = (String, FMatrix)
+type RuleState = ([Segment], [Segment], [(String, FMatrix -> FMatrix)])
 
 infixr 5 |>|
 infixr 5 |?|
@@ -75,20 +76,22 @@ fValue = oneOf ("+-0" ++ ['α'..'ω']) >>= return . read . (:[])
 feature :: GenParser Char st (String, FValue)
 feature = spaces >> fValue >>= \v -> (fName >>= \k -> spaces >> return (k, v))
 
-readIPA :: [Segment] -> [(String, FMatrix -> FMatrix)] -> String -> [Segment]
-readIPA segs dias input = case parse (ipaString segs dias) "feature matrix" input of
+readIPA :: [Segment] -> [Segment] -> [(String, FMatrix -> FMatrix)] -> String -> [Segment]
+readIPA segs macs dias input = case runParser ipaString (segs, macs, dias) "feature matrix" input of
                   Right fm -> fm
                   Left e -> error $ show e
 
-ipaString :: [Segment] -> [(String, FMatrix -> FMatrix)] -> GenParser Char st [Segment]
-ipaString segs dias = many (ipaSegment segs >>= ipaDiacritics dias)
+ipaString :: GenParser Char RuleState [Segment]
+ipaString = many (ipaSegment >>= ipaDiacritics)
 
-ipaSegment :: [(String, FMatrix)] -> GenParser Char st (String, FMatrix)
-ipaSegment segs = choice (map (\(l,fs) -> try $ string l >> return (l, fs)) segs)
+ipaSegment :: GenParser Char RuleState (String, FMatrix)
+ipaSegment = getState >>= \(segs, _, _) -> 
+             (choice (map (\(l,fs) -> try $ string l >> return (l, fs)) segs))
 
-ipaDiacritics :: [(String, FMatrix -> FMatrix)] -> (String, FMatrix) -> GenParser Char st (String, FMatrix)
-ipaDiacritics dias (seg, fm) = many (choice (map (\(d, f) -> try $ string d >> return (d, f)) dias)) >>=
-                          return . foldr (\(d, f) (seg', fm') -> (seg' ++ d, f fm')) (seg, fm)
+ipaDiacritics :: (String, FMatrix) -> GenParser Char RuleState (String, FMatrix)
+ipaDiacritics (seg, fm) = getState >>= \(_, _, dias) -> 
+                          (many (choice (map (\(d, f) -> try $ string d >> return (d, f)) dias)) >>=
+                                return . foldr (\(d, f) (seg', fm') -> (seg' ++ d, f fm')) (seg, fm))
                                     
 toFMatrixPairs :: [(String, String)] -> [(String, FMatrix)]
 toFMatrixPairs segs = reverse $ sortBy (comparing (length . fst)) [(seg, readFMatrix fs) | (seg, fs) <- segs]
@@ -107,8 +110,6 @@ defMacros = map (includeFts defFeatures) $ toFMatrixPairs macros
 
 getDefMacro :: Char -> FMatrix
 getDefMacro m = fromJust $ lookup (m:[]) defMacros
-
-defReadIPA = readIPA defSegments defDiacritics
 
 diacritics = [ ("ʷ", "[+back,+round]")
              , ("ʲ", "[+hi]")
