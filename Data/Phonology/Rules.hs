@@ -5,6 +5,7 @@ import Data.Maybe (fromJust)
 import Features
 import Control.Monad (foldM)
 import Text.ParserCombinators.Parsec
+import Generics.Pointless.Combinators ((><))
 
 type Rewrite = Segment -> Segment
 
@@ -29,6 +30,7 @@ instance Show RuleToken where
     show (PRDisjunction grps) = "(PRDisjunction {" ++ show grps ++ "}"
     show (PRBoundary) = "#"
 
+readRule :: String -> RuleToken
 readRule input = case runParser envToken (defSegments, defMacros, defDiacritics) "rule" input of
                       Right fm -> fm
                       Left e -> error $ show e
@@ -60,3 +62,12 @@ envMany0 = envGroup >>= \(PRGroup grp) -> string "_0" >> spaces >> return (PRZer
 
 editArrow :: GenParser Char RuleState ()
 editArrow = spaces >> string "->" >> spaces
+
+ruleSlash :: GenParser Char RuleState ()
+ruleSlash = spaces >> string "/" >> spaces
+
+editPart :: GenParser Char RuleState RuleToken
+editPart = editArrow >> return PRBoundary
+
+editFMatrix2FMatrix :: GenParser Char RuleState RuleToken
+editFMatrix2FMatrix = fMatrix >>= \fm1 -> (editArrow >> fMatrix >>= \fm2 -> return (PRFMat fm1 (id >< (|>| fm2))))

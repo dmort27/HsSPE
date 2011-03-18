@@ -102,6 +102,11 @@ diacriticFunctions dias = [(dia, \fm -> fm |>| (readFMatrix fts)) | (dia, fts) <
 includeFts :: [String] -> (String, FMatrix) -> (String, FMatrix)
 includeFts fts = id >< fmapFM (Map.filterWithKey (\k _ -> k `elem` fts))
 
+segmentFromFeatures :: [(String,FMatrix)] -> FMatrix -> String
+segmentFromFeatures segs fm = reverse $ case filter ((==fm) . snd) segs of
+      ((k,v):_) -> k
+      _ -> ""
+
 defFeatures = ["syl","son","cons","cont","delrel","lat","nas","voi","cg","sg","ant","cor","distr","hi","lo","back","round","tense"]
 
 defDiacritics = diacriticFunctions diacritics
