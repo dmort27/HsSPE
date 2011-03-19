@@ -107,6 +107,24 @@ segmentFromFeatures segs fm = reverse $ case filter ((==fm) . snd) segs of
       ((k,v):_) -> k
       _ -> ""
 
+bestSegmentMatch :: [Segment] -> FMatrix -> Segment
+bestSegmentMatch segs (FMatrix fm) = 
+    foldr (\(seg', FMatrix fm') (bestSeg, FMatrix bestFm) -> 
+               let specBestFm = specified bestFm
+                   specFm' = specified fm' in
+               if intersectSize specFm specFm' > intersectSize specFm specBestFm 
+                      || ( fm `Map.isSubmapOf` fm' && intersectSize specFm specFm' == intersectSize specFm specBestFm)
+               then (seg', FMatrix fm') 
+               else (bestSeg, FMatrix bestFm)
+          ) ("", FMatrix Map.empty) segs
+    where
+      intersectSize a b = Map.size $ Map.intersection a b
+      specified = Map.filter (/=Unspec)
+      specFm = specified fm
+
+--applyDiacritics :: [(Segment -> Segment)] -> Segment -> [Segment]
+--applyDiacritics dias s = map (\dia -> dia s) dias
+
 defFeatures = ["syl","son","cons","cont","delrel","lat","nas","voi","cg","sg","ant","cor","distr","hi","lo","back","round","tense"]
 
 defDiacritics = diacriticFunctions diacritics
