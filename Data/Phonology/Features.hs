@@ -3,12 +3,11 @@ module Features where
 import Data.Maybe (fromJust)
 import Data.Map (Map)
 import qualified Data.Map as Map
-
 import Data.List (intercalate, sortBy)
 import Data.Ord (comparing)
-
+import Debug.Trace (trace)
 import Control.Monad (foldM)
-
+--import qualified System.IO.UTF8 as UTF8
 import Text.ParserCombinators.Parsec
 
 import Generics.Pointless.Combinators ((><))
@@ -36,6 +35,8 @@ instance Show FMatrix where
     show (FMatrix fm) = (\x -> "[" ++ x ++ "]") $ intercalate "," $ map (\(k,v) -> (show v) ++ k) $ Map.toAscList fm
 
 fmapFM f (FMatrix fm) = FMatrix $ f fm
+
+fromFM (FMatrix fm) = fm
 
 type Segment = (String, FMatrix)
 type RuleState = ([Segment], [Segment], [(String, FMatrix -> FMatrix)])
@@ -102,28 +103,42 @@ diacriticFunctions dias = [(dia, \fm -> fm |>| (readFMatrix fts)) | (dia, fts) <
 includeFts :: [String] -> (String, FMatrix) -> (String, FMatrix)
 includeFts fts = id >< fmapFM (Map.filterWithKey (\k _ -> k `elem` fts))
 
-segmentFromFeatures :: [(String,FMatrix)] -> FMatrix -> String
-segmentFromFeatures segs fm = reverse $ case filter ((==fm) . snd) segs of
-      ((k,v):_) -> k
-      _ -> ""
+{-
+bestSegmentMatch :: [Segment] -> FMatrix -> Segment
+bestSegmentMatch segs fm = 
+    foldr (\(seg', fm') (bestSeg, bestFm) -> 
+               if fmEditDistance fm fm' < fmEditDistance fm bestFm then (seg', fm') else (bestSeg, bestFm)
+          ) ("", FMatrix Map.empty) segs
+-}
 
 bestSegmentMatch :: [Segment] -> FMatrix -> Segment
-bestSegmentMatch segs (FMatrix fm) = 
-    foldr (\(seg', FMatrix fm') (bestSeg, FMatrix bestFm) -> 
-               let specBestFm = specified bestFm
-                   specFm' = specified fm' in
-               if intersectSize specFm specFm' > intersectSize specFm specBestFm 
-                      || ( fm `Map.isSubmapOf` fm' && intersectSize specFm specFm' == intersectSize specFm specBestFm)
-               then (seg', FMatrix fm') 
-               else (bestSeg, FMatrix bestFm)
-          ) ("", FMatrix Map.empty) segs
-    where
-      intersectSize a b = Map.size $ Map.intersection a b
-      specified = Map.filter (/=Unspec)
-      specFm = specified fm
+bestSegmentMatch segs fm = snd $ head $ sortBy (comparing fst) [(fmEditDistance fm fm', (s', fm')) | (s', fm') <- segs]
 
---applyDiacritics :: [(Segment -> Segment)] -> Segment -> [Segment]
---applyDiacritics dias s = map (\dia -> dia s) dias
+segmentFromFeatures :: [Segment] -> [(String, FMatrix -> FMatrix)] -> FMatrix -> Segment
+segmentFromFeatures segs dias fm = segmentFromFeatures' segs' bestSeg bestDist
+    where
+      bestSeg = bestSegmentMatch segs fm
+      segs' = applyDiacritics defDiacritics bestSeg
+      bestDist = fmEditDistance fm (snd bestSeg)
+
+      segmentFromFeatures' :: [Segment] -> Segment -> Int -> Segment
+      segmentFromFeatures' segs'' seg dist
+          | dist == 0 = seg
+          | dist <= dist' = seg
+          | otherwise = segmentFromFeatures' segs''' bestSeg' dist'
+          where 
+            bestSeg' = bestSegmentMatch segs'' fm
+            dist' = fmEditDistance fm (snd bestSeg')
+            segs''' = applyDiacritics defDiacritics bestSeg'
+
+fmEditDistance :: FMatrix -> FMatrix -> Int
+fmEditDistance (FMatrix fm1) (FMatrix fm2) = 
+    Map.size $ Map.union (difference fm1 fm2) (difference fm2 fm1)
+        where
+          difference a b = Map.differenceWithKey (\_ a' b' -> if a' /= b' then Just a' else Nothing) a b
+                                             
+applyDiacritics :: [(String, FMatrix -> FMatrix)] -> Segment -> [Segment]
+applyDiacritics dias (s, fm) = map (\(dia, f) -> (s++dia, f fm)) dias
 
 defFeatures = ["syl","son","cons","cont","delrel","lat","nas","voi","cg","sg","ant","cor","distr","hi","lo","back","round","tense"]
 
