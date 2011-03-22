@@ -69,5 +69,11 @@ ruleSlash = spaces >> string "/" >> spaces
 editPart :: GenParser Char RuleState RuleToken
 editPart = editArrow >> return PRBoundary
 
+editSegByFM :: [Segment] -> [(String, FMatrix -> FMatrix)] -> FMatrix -> Segment -> Segment
+editSegByFM segs dias fm' (_, fm) = segmentFromFeatures segs dias (fm |>| fm')
+
 editFMatrix2FMatrix :: GenParser Char RuleState RuleToken
-editFMatrix2FMatrix = fMatrix >>= \fm1 -> (editArrow >> fMatrix >>= \fm2 -> return (PRFMat fm1 (id >< (|>| fm2))))
+editFMatrix2FMatrix = fMatrix >>= \fm1 -> 
+                      (editArrow >> fMatrix >>= \fm2 -> 
+                           getState >>= (\(segs, _, dias) -> 
+                                         (return (PRFMat fm1 (\(_, fm) -> segmentFromFeatures segs dias (fm |>| fm2))))))                            
