@@ -116,17 +116,13 @@ editLiteral2Literal = ipaSegment >>= ipaDiacritics >>=
 rule :: GenParser Char RuleState Rule
 rule = editPart >>= \t -> (ruleSlash >> environment >>= \(a, b) -> return (PRGroup [a, t, b]))
 
--- Will not work as currently formulated
 applyRule :: Rule -> [Segment] -> [Segment]
 applyRule _ [] = []
-applyRule rule form = applyRule rule $ maybe (tail form) (tail . fst) (applyRule' rule ([], form))
+applyRule rule form = x:(applyRule rule xs)
+    where x:xs = maybe form fst (applyRule' rule ([], form))
 
 applyRule' :: Rule -> ([Segment], [Segment]) -> Maybe ([Segment], [Segment])
 applyRule' (PRSeg _) (xs, []) = Nothing
-applyRule' (PRSeg rw) (xs, (y:ys)) = case rw y of
-                                       Just y' -> Just (xs++[y], ys)
-                                       Nothing -> Nothing
+applyRule' (PRSeg rw) (xs, (y:ys)) = rw y >>= \y' -> return (xs++[y'], ys)
 applyRule' (PRGroup []) (xs, ys) = Just (xs, ys)
-applyRule' (PRGroup (r:rs)) (xs, ys) = case applyRule' r (xs, ys) of
-                                         Just (xs', ys') -> applyRule' (PRGroup rs) (xs', ys')
-                                         Nothing -> Nothing
+applyRule' (PRGroup (r:rs)) (xs, ys) = applyRule' r (xs, ys) >>= applyRule' (PRGroup rs)
