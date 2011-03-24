@@ -20,17 +20,26 @@ data Rule = RSeg Rewrite
                | RBoundary
 
 instance Show Rule where
-    show (RSeg rw) = "(RSeg f)"
+    show (RSeg rw) = "(RSeg " ++  show (fromMaybe sampleChar $ rw sampleChar)  ++ ")"
     show (RGroup grp) = "(RGroup " ++ show grp ++ ")"
     show (RStar grp) = "(RStar " ++ show grp ++ ")"
     show (ROpt grp) = "(ROpt " ++ show grp ++ ")"
     show (RChoice grps) = "(RChoice {" ++ show grps ++ "}"
     show (RBoundary) = "#"
 
+sampleChar = head $ readIPA defState "b"
+
 readRule :: String -> Rule
 readRule input = case runParser rule (defSegments, defMacros, defDiacritics) "rule" input of
                       Right fm -> fm
                       Left e -> error $ show e
+
+--{-
+readFM :: String -> FMatrix
+readFM input = case runParser fMatrix (defSegments, defMacros, defDiacritics) "rule" input of
+                      Right fm -> fm
+                      Left e -> error $ show e
+---}
 
 alphaVars :: String -> [Char]
 alphaVars = nub . filter (`elem` ['α'..'ω'])
@@ -48,6 +57,7 @@ envToken = try envBoundary
            <|> try envFMatrix 
            <|> try envManyN
            <|> try envOpt
+           <|> try envChoice
 
 envBoundary :: GenParser Char RuleState Rule
 envBoundary = char '#' >> return RBoundary
@@ -72,6 +82,10 @@ envOpt = envGroup >>= return . ROpt
 
 envManyN :: GenParser Char RuleState Rule
 envManyN = envGroup >>= \grp -> ((many1 digit) >>= \n -> return (RGroup $ (replicate (read n) grp) ++ [RStar grp]))
+
+envChoice :: GenParser Char RuleState Rule
+envChoice = char '{' >> spaces >> sepBy (many1 envToken) (spaces >> char ',' >> spaces) >>= 
+            \cs -> (spaces >> char '}' >> return (RChoice (map RGroup cs)))
 
 envTarget :: GenParser Char RuleState ()
 envTarget = string "_" >> return ()
@@ -109,7 +123,7 @@ rewriteLit (s, fm) newSeg (s', fm')
 
 rewriteMatrix :: RuleState -> Segment -> Segment -> Rewrite
 rewriteMatrix (segs, _, dias) (_, fm) (_, fm') (s, fm'')
-    | fm |?| fm' = Just $ segmentFromFeatures segs dias (fm |>| fm'')
+    | fm'' |?| fm = Just $ segmentFromFeatures segs dias (fm'' |>| fm')
     | otherwise = Nothing
 
 rule :: GenParser Char RuleState Rule

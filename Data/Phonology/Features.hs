@@ -7,7 +7,6 @@ import Data.List (intercalate, sortBy)
 import Data.Ord (comparing)
 import Debug.Trace (trace)
 import Control.Monad (foldM)
---import qualified System.IO.UTF8 as UTF8
 import Text.ParserCombinators.Parsec
 
 import Generics.Pointless.Combinators ((><))
@@ -77,8 +76,8 @@ fValue = oneOf ("+-0" ++ ['α'..'ω']) >>= return . read . (:[])
 feature :: GenParser Char st (String, FValue)
 feature = spaces >> fValue >>= \v -> (fName >>= \k -> spaces >> return (k, v))
 
-readIPA :: [Segment] -> [Segment] -> [(String, FMatrix -> FMatrix)] -> String -> [Segment]
-readIPA segs macs dias input = case runParser ipaString (segs, macs, dias) "feature matrix" input of
+readIPA :: RuleState -> String -> [Segment]
+readIPA (segs, macs, dias) input = case runParser ipaString (segs, macs, dias) "feature matrix" input of
                   Right fm -> fm
                   Left e -> error $ show e
 
@@ -134,9 +133,11 @@ applyDiacritics dias (s, fm) = map (\(dia, f) -> (s++dia, f fm)) dias
 
 defFeatures = ["syl","son","cons","cont","delrel","lat","nas","voi","cg","sg","ant","cor","distr","hi","lo","back","round","tense"]
 
-defDiacritics = diacriticFunctions diacritics
 defSegments = map (includeFts defFeatures) $ toFMatrixPairs segments
 defMacros = map (includeFts defFeatures) $ toFMatrixPairs macros
+defDiacritics = diacriticFunctions diacritics
+
+defState = (defSegments, defMacros, defDiacritics)
 
 getDefMacro :: Char -> FMatrix
 getDefMacro m = fromJust $ lookup (m:[]) defMacros
