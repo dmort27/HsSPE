@@ -103,14 +103,6 @@ diacriticFunctions dias = [(dia, \fm -> fm |>| (readFMatrix fts)) | (dia, fts) <
 includeFts :: [String] -> (String, FMatrix) -> (String, FMatrix)
 includeFts fts = id >< fmapFM (Map.filterWithKey (\k _ -> k `elem` fts))
 
-{-
-bestSegmentMatch :: [Segment] -> FMatrix -> Segment
-bestSegmentMatch segs fm = 
-    foldr (\(seg', fm') (bestSeg, bestFm) -> 
-               if fmEditDistance fm fm' < fmEditDistance fm bestFm then (seg', fm') else (bestSeg, bestFm)
-          ) ("", FMatrix Map.empty) segs
--}
-
 bestSegmentMatch :: [Segment] -> FMatrix -> Segment
 bestSegmentMatch segs fm = snd $ head $ sortBy (comparing fst) [(fmEditDistance fm fm', (s', fm')) | (s', fm') <- segs]
 
