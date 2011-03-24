@@ -12,6 +12,8 @@ type Rewrite = Segment -> Maybe Segment
 
 data Rule = RSeg Rewrite
                | RGroup [Rule]
+               | RStar Rule
+               | ROpt Rule
                | ROneOrMore [Rule]
                | RZeroOrMore [Rule]
                | RDisjunction [[Rule]]
@@ -22,6 +24,8 @@ data Rule = RSeg Rewrite
 instance Show Rule where
     show (RSeg rw) = "(RSeg f)"
     show (RGroup grp) = "(RGroup " ++ show grp ++ ")"
+    show (RStar grp) = "(RStar " ++ show grp ++ ")"
+    show (ROpt grp) = "(ROpt " ++ show grp ++ ")"
     show (ROneOrMore grp) = "(ROneOrMore " ++ show grp ++ ")+"
     show (RZeroOrMore grp) = "(RZeroOrMore " ++ show grp ++ ")+"
     show (RDisjunction grps) = "(RDisjunction {" ++ show grps ++ "}"
@@ -46,8 +50,6 @@ envToken = try envBoundary
            <|> try envMacro 
            <|> try envIPASegment 
            <|> try envFMatrix 
-           <|> try envMany1 
-           <|> try envMany0 
            <|> try envGroup
 
 envBoundary :: GenParser Char RuleState Rule
@@ -78,11 +80,13 @@ rewriteMatrix (segs, _, dias) (_, fm) (_, fm') (s, fm'')
 envGroup :: GenParser Char RuleState Rule
 envGroup = char '(' >> spaces >> (many1 envToken) >>= \toks -> (spaces >> char ')' >> return (RGroup toks))
 
+{-
 envMany1 :: GenParser Char RuleState Rule
 envMany1 = envGroup >>= \(RGroup grp) -> string "_1" >> spaces >> return (ROneOrMore grp)
 
 envMany0 :: GenParser Char RuleState Rule
 envMany0 = envGroup >>= \(RGroup grp) -> string "_0" >> spaces >> return (RZeroOrMore grp)
+-}
 
 envTarget :: GenParser Char RuleState ()
 envTarget = string "_" >> return ()
