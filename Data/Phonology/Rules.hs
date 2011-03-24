@@ -10,22 +10,22 @@ import Generics.Pointless.Combinators ((><))
 
 type Rewrite = Segment -> Maybe Segment
 
-data Rule = PRSeg Rewrite
-               | PRGroup [Rule]
-               | PROneOrMore [Rule]
-               | PRZeroOrMore [Rule]
-               | PRDisjunction [[Rule]]
-               | PRDelete [Rule]
-               | PRInsert [Rule]
-               | PRBoundary
+data Rule = RSeg Rewrite
+               | RGroup [Rule]
+               | ROneOrMore [Rule]
+               | RZeroOrMore [Rule]
+               | RDisjunction [[Rule]]
+               | RDelete [Rule]
+               | RInsert [Rule]
+               | RBoundary
 
 instance Show Rule where
-    show (PRSeg rw) = "(PRSeg f)"
-    show (PRGroup grp) = "(PRGroup " ++ show grp ++ ")"
-    show (PROneOrMore grp) = "(PROneOrMore " ++ show grp ++ ")+"
-    show (PRZeroOrMore grp) = "(PRZeroOrMore " ++ show grp ++ ")+"
-    show (PRDisjunction grps) = "(PRDisjunction {" ++ show grps ++ "}"
-    show (PRBoundary) = "#"
+    show (RSeg rw) = "(RSeg f)"
+    show (RGroup grp) = "(RGroup " ++ show grp ++ ")"
+    show (ROneOrMore grp) = "(ROneOrMore " ++ show grp ++ ")+"
+    show (RZeroOrMore grp) = "(RZeroOrMore " ++ show grp ++ ")+"
+    show (RDisjunction grps) = "(RDisjunction {" ++ show grps ++ "}"
+    show (RBoundary) = "#"
 
 alphaVars :: String -> [Char]
 alphaVars = nub . filter (`elem` ['α'..'ω'])
@@ -51,19 +51,19 @@ envToken = try envBoundary
            <|> try envGroup
 
 envBoundary :: GenParser Char RuleState Rule
-envBoundary = char '#' >> return PRBoundary
+envBoundary = char '#' >> return RBoundary
 
 envFMatrix :: GenParser Char RuleState Rule
-envFMatrix = fMatrix >>= \fm -> (getState >>= \st -> (return (PRSeg $ rewriteMatrix st ("", fm) ("", fm))))
+envFMatrix = fMatrix >>= \fm -> (getState >>= \st -> (return (RSeg $ rewriteMatrix st ("", fm) ("", fm))))
 
 envMacro :: GenParser Char RuleState Rule
 envMacro = getState >>= \st@(_, ms, _) -> 
            (oneOf (map (head . fst) ms) >>= 
                       \m -> (return (fromJust $ lookup (m:[]) ms) >>=
-                       \fm -> (return (PRSeg $ rewriteMatrix st ("", fm) ("", fm)))))
+                       \fm -> (return (RSeg $ rewriteMatrix st ("", fm) ("", fm)))))
 
 envIPASegment :: GenParser Char RuleState Rule
-envIPASegment = ipaSegment >>= ipaDiacritics >>= \seg -> return (PRSeg $ rewriteLit seg seg)
+envIPASegment = ipaSegment >>= ipaDiacritics >>= \seg -> return (RSeg $ rewriteLit seg seg)
 
 rewriteLit :: Segment -> Segment -> Rewrite
 rewriteLit (s, fm) newSeg (s', fm')
@@ -76,19 +76,19 @@ rewriteMatrix (segs, _, dias) (_, fm) (_, fm') (s, fm'')
     | otherwise = Nothing
 
 envGroup :: GenParser Char RuleState Rule
-envGroup = char '(' >> spaces >> (many1 envToken) >>= \toks -> (spaces >> char ')' >> return (PRGroup toks))
+envGroup = char '(' >> spaces >> (many1 envToken) >>= \toks -> (spaces >> char ')' >> return (RGroup toks))
 
 envMany1 :: GenParser Char RuleState Rule
-envMany1 = envGroup >>= \(PRGroup grp) -> string "_1" >> spaces >> return (PROneOrMore grp)
+envMany1 = envGroup >>= \(RGroup grp) -> string "_1" >> spaces >> return (ROneOrMore grp)
 
 envMany0 :: GenParser Char RuleState Rule
-envMany0 = envGroup >>= \(PRGroup grp) -> string "_0" >> spaces >> return (PRZeroOrMore grp)
+envMany0 = envGroup >>= \(RGroup grp) -> string "_0" >> spaces >> return (RZeroOrMore grp)
 
 envTarget :: GenParser Char RuleState ()
 envTarget = string "_" >> return ()
 
 envPart :: GenParser Char RuleState Rule
-envPart = many envToken >>= return . PRGroup
+envPart = many envToken >>= return . RGroup
 
 environment :: GenParser Char RuleState (Rule, Rule)
 environment = envPart >>= \a -> (envTarget >> envPart >>= \b -> return (a, b))
@@ -106,15 +106,15 @@ editFMatrix2FMatrix :: GenParser Char RuleState Rule
 editFMatrix2FMatrix = fMatrix >>= 
                       \fm1 -> (editArrow >> fMatrix >>= 
                                \fm2 -> getState >>= 
-                                       (\st -> (return (PRSeg $ rewriteMatrix st ("", fm1) ("", fm2)))))
+                                       (\st -> (return (RSeg $ rewriteMatrix st ("", fm1) ("", fm2)))))
 
 editLiteral2Literal :: GenParser Char RuleState Rule
 editLiteral2Literal = ipaSegment >>= ipaDiacritics >>= 
                       \seg1 -> (editArrow >> ipaSegment >>= ipaDiacritics >>= 
-                                    \seg2 -> return (PRSeg $ rewriteLit seg1 seg2))
+                                    \seg2 -> return (RSeg $ rewriteLit seg1 seg2))
 
 rule :: GenParser Char RuleState Rule
-rule = editPart >>= \t -> (ruleSlash >> environment >>= \(a, b) -> return (PRGroup [a, t, b]))
+rule = editPart >>= \t -> (ruleSlash >> environment >>= \(a, b) -> return (RGroup [a, t, b]))
 
 applyRule :: Rule -> [Segment] -> [Segment]
 applyRule _ [] = []
@@ -122,7 +122,7 @@ applyRule rule form = x:(applyRule rule xs)
     where x:xs = maybe form fst (applyRule' rule ([], form))
 
 applyRule' :: Rule -> ([Segment], [Segment]) -> Maybe ([Segment], [Segment])
-applyRule' (PRSeg _) (xs, []) = Nothing
-applyRule' (PRSeg rw) (xs, (y:ys)) = rw y >>= \y' -> return (xs++[y'], ys)
-applyRule' (PRGroup []) (xs, ys) = Just (xs, ys)
-applyRule' (PRGroup (r:rs)) (xs, ys) = applyRule' r (xs, ys) >>= applyRule' (PRGroup rs)
+applyRule' (RSeg _) (xs, []) = Nothing
+applyRule' (RSeg rw) (xs, (y:ys)) = rw y >>= \y' -> return (xs++[y'], ys)
+applyRule' (RGroup []) (xs, ys) = Just (xs, ys)
+applyRule' (RGroup (r:rs)) (xs, ys) = applyRule' r (xs, ys) >>= applyRule' (RGroup rs)
