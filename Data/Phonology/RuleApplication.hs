@@ -1,6 +1,7 @@
 module RuleApplication where
 
 import Control.Applicative
+import Debug.Trace (trace)
 import Rules
 import Features
 
@@ -9,7 +10,7 @@ choice ps = foldl (<|>) Nothing ps
 applyRule :: Rule -> [Segment] -> [Segment]
 applyRule _ [] = []
 applyRule rule form = x:(applyRule rule xs)
-    where x:xs = maybe form fst (applyRule' rule ([], form))
+    where x:xs = maybe form (\(a,b) -> a++b) (applyRule' rule ([], form))
 
 applyRule' :: Rule -> ([Segment], [Segment]) -> Maybe ([Segment], [Segment])
 applyRule' (RSeg _) (xs, []) = Nothing
