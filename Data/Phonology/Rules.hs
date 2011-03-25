@@ -1,7 +1,9 @@
 module Data.Phonology.Rules ( Rewrite
-             , Rule(..)
-             , applyRule
-             ) where
+                            , Rule(..)
+                            , applyRule
+                            , derivation
+                            , toString
+                            ) where
 
 import Control.Applicative
 import Debug.Trace (trace)
@@ -29,7 +31,8 @@ instance Show Rule where
     show (RChoice grps) = "(RChoice {" ++ show grps ++ "}"
     show (RBoundary) = "#"
 
-choice ps = foldl (<|>) Nothing ps
+derivation :: [Segment] -> [Rule] -> [[Segment]]
+derivation form = scanl (\acc r -> applyRule r acc) form
 
 applyRule :: Rule -> [Segment] -> [Segment]
 applyRule _ [] = []
@@ -57,3 +60,8 @@ applyRule' (RDelete _) (_, []) = Nothing
 applyRule' (RDelete (RGroup [])) form = return form
 applyRule' (RDelete (RGroup (rw:rws))) (xs, (y:ys)) = applyRule' rw (xs, y:ys) >>= 
                                                     \_ -> applyRule' (RDelete (RGroup (rws))) (xs, ys)
+
+choice ps = foldl (<|>) Nothing ps
+
+toString :: [Segment] -> String
+toString = concatMap fst

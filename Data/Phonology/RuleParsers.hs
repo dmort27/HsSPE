@@ -20,8 +20,8 @@ expandRule rule = foldr (\c acc -> concat [[replace c '+' r, replace c '-' r] | 
       replace :: Char -> Char -> String -> String
       replace c1 c2 = map (\x -> if x == c1 then c2 else x)
 
-readRule :: String -> Rule
-readRule input = case runParser rule (defSegments, defMacros, defDiacritics) "rule" input of
+readRule :: RuleState -> String -> Rule
+readRule st input = case runParser rule st "rule" input of
                       Right fm -> fm
                       Left e -> error $ show e
 
