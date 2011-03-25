@@ -1,4 +1,4 @@
-module Features ( FValue
+module Data.Phonology.Features ( FValue
                 , FMatrix
                 , Segment
                 , RuleState

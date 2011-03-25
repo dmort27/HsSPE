@@ -1,4 +1,4 @@
-module Rules ( Rewrite
+module Data.Phonology.Rules ( Rewrite
              , Rule(..)
              , applyRule
              ) where
@@ -6,7 +6,7 @@ module Rules ( Rewrite
 import Control.Applicative
 import Debug.Trace (trace)
 import Data.Maybe (fromMaybe)
-import Features
+import Data.Phonology.Features
 
 type Rewrite = Segment -> Maybe Segment
 

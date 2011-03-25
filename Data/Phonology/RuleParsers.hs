@@ -1,12 +1,12 @@
-module RuleParsers ( readRule
+module Data.Phonology.RuleParsers ( readRule
                    , expandRule
                    ) where
 
 import Data.Maybe (fromJust, fromMaybe)
 import Data.List (nub)
 
-import Features
-import Rules
+import Data.Phonology.Features
+import Data.Phonology.Rules
 
 import Control.Monad (foldM)
 import Text.ParserCombinators.Parsec
