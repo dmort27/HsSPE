@@ -1,0 +1,15 @@
+HsSPE is a Haskell library for implementing SPE-style rule-based
+phonologies. It is designed to be easy to extend, both in terms of
+feature systems/segment definitions and in terms of rule parsers. It
+includes the following components:
+
+* Data.Phonology.Features - a library for parsing, serializing, and
+  manipulating matrices of binary features (underspecification
+  allowed) and for parsing IPA strings into lists of segment/feature
+  matrix pairs.
+
+* Data.Phonology.RuleParsers - a library for parsing string
+  representations of phonological rules.
+
+* Data.Phonology.Rules - a library defining phonological rules and
+  functions for their application to representations.
