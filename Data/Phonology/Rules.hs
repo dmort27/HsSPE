@@ -1,4 +1,8 @@
-module Rules where
+module Rules ( readRule
+             , expandRule
+             , Rewrite
+             , Rule(..)
+             ) where
 
 import Data.Maybe (fromJust, fromMaybe)
 import Data.List (nub)
@@ -21,34 +25,83 @@ data Rule = RSeg Rewrite
 
 instance Show Rule where
     show (RSeg rw) = "(RSeg " ++  show (fromMaybe sampleChar $ rw sampleChar)  ++ ")"
+        where
+          sampleChar = head $ readIPA defState "b"
     show (RGroup grp) = "(RGroup " ++ show grp ++ ")"
     show (RStar grp) = "(RStar " ++ show grp ++ ")"
     show (ROpt grp) = "(ROpt " ++ show grp ++ ")"
     show (RChoice grps) = "(RChoice {" ++ show grps ++ "}"
     show (RBoundary) = "#"
 
-sampleChar = head $ readIPA defState "b"
+expandRule :: String -> [String]
+expandRule rule = foldr (\c acc -> concat [[replace c '+' r, replace c '-' r] | r <- acc]) [rule] (alphaVars rule)
+    where
+      alphaVars :: String -> [Char]
+      alphaVars = nub . filter (`elem` ['α'..'ω'])
+      replace :: Char -> Char -> String -> String
+      replace c1 c2 = map (\x -> if x == c1 then c2 else x)
 
 readRule :: String -> Rule
 readRule input = case runParser rule (defSegments, defMacros, defDiacritics) "rule" input of
                       Right fm -> fm
                       Left e -> error $ show e
 
---{-
-readFM :: String -> FMatrix
-readFM input = case runParser fMatrix (defSegments, defMacros, defDiacritics) "rule" input of
-                      Right fm -> fm
-                      Left e -> error $ show e
----}
+rule :: GenParser Char RuleState Rule
+rule = editPart >>= \t -> (ruleSlash >> environment >>= \(a, b) -> return (RGroup [a, t, b]))
 
-alphaVars :: String -> [Char]
-alphaVars = nub . filter (`elem` ['α'..'ω'])
+editPart :: GenParser Char RuleState Rule
+editPart = choice $ map try [editZero2Literal, editLiteral2Zero, editFMatrix2FMatrix, editLiteral2Literal]
 
-replace :: Char -> Char -> String -> String
-replace c1 c2 = map (\x -> if x == c1 then c2 else x)
+editArrow :: GenParser Char RuleState ()
+editArrow = spaces >> (string "->" <|> string "→") >> spaces
 
-expandRule :: String -> [String]
-expandRule rule = foldr (\c acc -> concat [[replace c '+' r, replace c '-' r] | r <- acc]) [rule] (alphaVars rule)
+editFMatrix2FMatrix :: GenParser Char RuleState Rule
+editFMatrix2FMatrix = fMatrix >>= 
+                      \fm1 -> (editArrow >> fMatrix >>= 
+                               \fm2 -> getState >>= 
+                                       (\st -> (return (RSeg $ rewriteMatrix st ("", fm1) ("", fm2)))))
+
+editLiteral2Literal :: GenParser Char RuleState Rule
+editLiteral2Literal = ipaSegment >>= ipaDiacritics >>= 
+                      \seg1 -> (editArrow >> ipaSegment >>= ipaDiacritics >>= 
+                                    \seg2 -> return (RSeg $ rewriteLit seg1 seg2))
+
+editZero2Literal :: GenParser Char RuleState Rule
+editZero2Literal = editZero >> editArrow >> (many1 (ipaSegment >>= ipaDiacritics)) >>= 
+                   return . RInsert . RGroup . map (RSeg . rewriteAnyLit)
+
+editLiteral2Zero :: GenParser Char RuleState Rule
+editLiteral2Zero = (many1 (ipaSegment >>= ipaDiacritics)) >>= 
+                   \segs -> editArrow >> editZero >> return segs >>=
+                   return . RDelete . RGroup . map (\seg -> RSeg (rewriteLit seg seg))
+
+editZero :: GenParser Char RuleState Char
+editZero = oneOf "0∅"
+
+rewriteAnyLit :: Segment -> Rewrite
+rewriteAnyLit newSeg _ = Just newSeg
+
+rewriteLit :: Segment -> Segment -> Rewrite
+rewriteLit (s, fm) newSeg (s', fm')
+    | s' == s = Just newSeg
+    | otherwise = Nothing 
+
+rewriteMatrix :: RuleState -> Segment -> Segment -> Rewrite
+rewriteMatrix (segs, _, dias) (_, fm) (_, fm') (s, fm'')
+    | fm'' |?| fm = Just $ segmentFromFeatures segs dias (fm'' |>| fm')
+    | otherwise = Nothing
+
+ruleSlash :: GenParser Char RuleState ()
+ruleSlash = spaces >> string "/" >> spaces
+
+environment :: GenParser Char RuleState (Rule, Rule)
+environment = envPart >>= \a -> (envTarget >> envPart >>= \b -> return (a, b))
+
+envTarget :: GenParser Char RuleState ()
+envTarget = string "_" >> return ()
+
+envPart :: GenParser Char RuleState Rule
+envPart = many envToken >>= return . RGroup
 
 envToken :: GenParser Char RuleState Rule
 envToken = try envBoundary 
@@ -58,6 +111,19 @@ envToken = try envBoundary
            <|> try envManyN
            <|> try envOpt
            <|> try envChoice
+
+envGroup :: GenParser Char RuleState Rule
+envGroup = char '(' >> spaces >> (many1 envToken) >>= \toks -> (spaces >> char ')' >> return (RGroup toks))
+
+envOpt :: GenParser Char RuleState Rule
+envOpt = envGroup >>= return . ROpt
+
+envManyN :: GenParser Char RuleState Rule
+envManyN = envGroup >>= \grp -> ((many1 digit) >>= \n -> return (RGroup $ (replicate (read n) grp) ++ [RStar grp]))
+
+envChoice :: GenParser Char RuleState Rule
+envChoice = char '{' >> spaces >> sepBy (many1 envToken) (spaces >> char ',' >> spaces) >>= 
+            \cs -> (spaces >> char '}' >> return (RChoice (map RGroup cs)))
 
 envBoundary :: GenParser Char RuleState Rule
 envBoundary = char '#' >> return RBoundary
@@ -74,57 +140,3 @@ envMacro = getState >>= \st@(_, ms, _) ->
 envIPASegment :: GenParser Char RuleState Rule
 envIPASegment = ipaSegment >>= ipaDiacritics >>= \seg -> return (RSeg $ rewriteLit seg seg)
 
-envGroup :: GenParser Char RuleState Rule
-envGroup = char '(' >> spaces >> (many1 envToken) >>= \toks -> (spaces >> char ')' >> return (RGroup toks))
-
-envOpt :: GenParser Char RuleState Rule
-envOpt = envGroup >>= return . ROpt
-
-envManyN :: GenParser Char RuleState Rule
-envManyN = envGroup >>= \grp -> ((many1 digit) >>= \n -> return (RGroup $ (replicate (read n) grp) ++ [RStar grp]))
-
-envChoice :: GenParser Char RuleState Rule
-envChoice = char '{' >> spaces >> sepBy (many1 envToken) (spaces >> char ',' >> spaces) >>= 
-            \cs -> (spaces >> char '}' >> return (RChoice (map RGroup cs)))
-
-envTarget :: GenParser Char RuleState ()
-envTarget = string "_" >> return ()
-
-envPart :: GenParser Char RuleState Rule
-envPart = many envToken >>= return . RGroup
-
-environment :: GenParser Char RuleState (Rule, Rule)
-environment = envPart >>= \a -> (envTarget >> envPart >>= \b -> return (a, b))
-
-editArrow :: GenParser Char RuleState ()
-editArrow = spaces >> string "->" >> spaces
-
-ruleSlash :: GenParser Char RuleState ()
-ruleSlash = spaces >> string "/" >> spaces
-
-editPart :: GenParser Char RuleState Rule
-editPart = editFMatrix2FMatrix <|> editLiteral2Literal
-
-editFMatrix2FMatrix :: GenParser Char RuleState Rule
-editFMatrix2FMatrix = fMatrix >>= 
-                      \fm1 -> (editArrow >> fMatrix >>= 
-                               \fm2 -> getState >>= 
-                                       (\st -> (return (RSeg $ rewriteMatrix st ("", fm1) ("", fm2)))))
-
-editLiteral2Literal :: GenParser Char RuleState Rule
-editLiteral2Literal = ipaSegment >>= ipaDiacritics >>= 
-                      \seg1 -> (editArrow >> ipaSegment >>= ipaDiacritics >>= 
-                                    \seg2 -> return (RSeg $ rewriteLit seg1 seg2))
-
-rewriteLit :: Segment -> Segment -> Rewrite
-rewriteLit (s, fm) newSeg (s', fm')
-    | s' == s = Just newSeg
-    | otherwise = Nothing 
-
-rewriteMatrix :: RuleState -> Segment -> Segment -> Rewrite
-rewriteMatrix (segs, _, dias) (_, fm) (_, fm') (s, fm'')
-    | fm'' |?| fm = Just $ segmentFromFeatures segs dias (fm'' |>| fm')
-    | otherwise = Nothing
-
-rule :: GenParser Char RuleState Rule
-rule = editPart >>= \t -> (ruleSlash >> environment >>= \(a, b) -> return (RGroup [a, t, b]))
