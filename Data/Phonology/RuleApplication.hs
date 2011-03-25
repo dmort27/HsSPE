@@ -20,7 +20,8 @@ applyRule' RBoundary (xs, (y:ys))
     | (fst y) == "#" = return (xs++[y], ys)
     | otherwise = Nothing
 applyRule' (RGroup []) form = Just form
-applyRule' (RGroup ((ROpt r):rs)) form = applyRule' (RGroup (r:rs)) form <|> applyRule' (RGroup rs) form
+applyRule' (RGroup ((ROpt r):rs)) form = applyRule' (RGroup (r:rs)) form 
+                                         <|> applyRule' (RGroup rs) form
 applyRule' (RGroup ((RStar r):rs)) form = applyRule' (RGroup rs) form 
                                           <|> applyRule' (RGroup (r:rs)) form
                                           <|> applyRule' (RGroup (r:(RStar r):rs)) form
