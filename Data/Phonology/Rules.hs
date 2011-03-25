@@ -20,13 +20,13 @@ data Rule = RSeg Rewrite
                | ROpt Rule
                | RChoice [Rule]
                | RDelete Rule
-               | RInsert Rule
+               | RInsert [Segment]
                | RBoundary
 
 instance Show Rule where
     show (RSeg rw) = "(RSeg " ++  show (fromMaybe sampleChar $ rw sampleChar)  ++ ")"
         where
-          sampleChar = head $ readIPA defState "b"
+          sampleChar = head $ readIPA defState "i"
     show (RGroup grp) = "(RGroup " ++ show grp ++ ")"
     show (RStar grp) = "(RStar " ++ show grp ++ ")"
     show (ROpt grp) = "(ROpt " ++ show grp ++ ")"
@@ -50,7 +50,7 @@ rule :: GenParser Char RuleState Rule
 rule = editPart >>= \t -> (ruleSlash >> environment >>= \(a, b) -> return (RGroup [a, t, b]))
 
 editPart :: GenParser Char RuleState Rule
-editPart = choice $ map try [editZero2Literal, editLiteral2Zero, editFMatrix2FMatrix, editLiteral2Literal]
+editPart = choice $ map try [editZero2Literal, editLiteral2Zero, editMatrix2Zero, editFMatrix2FMatrix, editLiteral2Literal]
 
 editArrow :: GenParser Char RuleState ()
 editArrow = spaces >> (string "->" <|> string "→") >> spaces
@@ -68,12 +68,16 @@ editLiteral2Literal = ipaSegment >>= ipaDiacritics >>=
 
 editZero2Literal :: GenParser Char RuleState Rule
 editZero2Literal = editZero >> editArrow >> (many1 (ipaSegment >>= ipaDiacritics)) >>= 
-                   return . RInsert . RGroup . map (RSeg . rewriteAnyLit)
+                   return . RInsert
 
 editLiteral2Zero :: GenParser Char RuleState Rule
 editLiteral2Zero = (many1 (ipaSegment >>= ipaDiacritics)) >>= 
                    \segs -> editArrow >> editZero >> return segs >>=
                    return . RDelete . RGroup . map (\seg -> RSeg (rewriteLit seg seg))
+
+editMatrix2Zero :: GenParser Char RuleState Rule
+editMatrix2Zero = getState >>= \st -> fMatrix >>= 
+                  \fm -> editArrow >> editZero >> return (RDelete $ RGroup [RSeg $ rewriteMatrix st ("", fm) ("", fm)])
 
 editZero :: GenParser Char RuleState Char
 editZero = oneOf "0∅"

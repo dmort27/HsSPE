@@ -26,3 +26,9 @@ applyRule' (RGroup ((RStar r):rs)) form = applyRule' (RGroup rs) form
                                           <|> applyRule' (RGroup (r:(RStar r):rs)) form
 applyRule' (RGroup ((RChoice cs):rs)) form = choice $ map (\c -> applyRule' (RGroup (c:rs)) form) cs
 applyRule' (RGroup (r:rs)) form = applyRule' r form >>= applyRule' (RGroup rs)
+applyRule' (RInsert segs) (xs, []) = Nothing
+applyRule' (RInsert segs) (xs, ys) = return (xs++segs, ys)
+applyRule' (RDelete _) (_, []) = Nothing
+applyRule' (RDelete (RGroup [])) form = return form
+applyRule' (RDelete (RGroup (rw:rws))) (xs, (y:ys)) = applyRule' rw (xs, y:ys) >>= 
+                                                    \_ -> applyRule' (RDelete (RGroup (rws))) (xs, ys)
