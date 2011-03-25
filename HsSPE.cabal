@@ -1,0 +1,16 @@
+Name:		HsSPE
+Version:	0.1
+Cabal-Version:  >= 1.2
+License:	BSD3
+License-File:	LICENSE
+Author:		David R. Mortensen
+Homepage:	http://github.com/dmort27/HsSPE
+Category:	Natural Language Processing
+Synopsis:	A Haskell library implementing SPE-style ordered-rule phonology.
+Build-Type:     Simple
+
+Library
+  Build-Depends:
+   base, parsec, pointless-haskell, containers
+  Exposed-modules:
+    Data.Phonology.Features, Data.Phonology.Rules, Data.Phonology.RuleParsers
