@@ -1,37 +1,16 @@
-module Rules ( readRule
-             , expandRule
-             , Rewrite
-             , Rule(..)
-             ) where
+module RuleParsers ( readRule
+                   , expandRule
+                   ) where
 
 import Data.Maybe (fromJust, fromMaybe)
 import Data.List (nub)
 
 import Features
+import Rules
+
 import Control.Monad (foldM)
 import Text.ParserCombinators.Parsec
 import Generics.Pointless.Combinators ((><))
-
-type Rewrite = Segment -> Maybe Segment
-
-data Rule = RSeg Rewrite
-               | RGroup [Rule]
-               | RStar Rule
-               | ROpt Rule
-               | RChoice [Rule]
-               | RDelete Rule
-               | RInsert [Segment]
-               | RBoundary
-
-instance Show Rule where
-    show (RSeg rw) = "(RSeg " ++  show (fromMaybe sampleChar $ rw sampleChar)  ++ ")"
-        where
-          sampleChar = head $ readIPA defState "i"
-    show (RGroup grp) = "(RGroup " ++ show grp ++ ")"
-    show (RStar grp) = "(RStar " ++ show grp ++ ")"
-    show (ROpt grp) = "(ROpt " ++ show grp ++ ")"
-    show (RChoice grps) = "(RChoice {" ++ show grps ++ "}"
-    show (RBoundary) = "#"
 
 expandRule :: String -> [String]
 expandRule rule = foldr (\c acc -> concat [[replace c '+' r, replace c '-' r] | r <- acc]) [rule] (alphaVars rule)

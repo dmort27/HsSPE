@@ -1,4 +1,24 @@
-module Features where
+module Features ( FValue
+                , FMatrix
+                , Segment
+                , RuleState
+                , (|>|)
+                , (|?|)
+                , flipFValue
+                , fMatrix
+                , readIPA
+                , ipaSegment
+                , ipaDiacritics
+                , segmentFromFeatures
+                , includeFts
+                , toFMatrixPairs
+                , diacriticFunctions
+                , defFeatures
+                , defSegments
+                , defMacros
+                , defDiacritics
+                , defState
+                ) where
 
 import Data.Maybe (fromJust)
 import Data.Map (Map)

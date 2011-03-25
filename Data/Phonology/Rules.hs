@@ -1,9 +1,33 @@
-module RuleApplication where
+module Rules ( Rewrite
+             , Rule(..)
+             , applyRule
+             ) where
 
 import Control.Applicative
 import Debug.Trace (trace)
-import Rules
+import Data.Maybe (fromMaybe)
 import Features
+
+type Rewrite = Segment -> Maybe Segment
+
+data Rule = RSeg Rewrite
+               | RGroup [Rule]
+               | RStar Rule
+               | ROpt Rule
+               | RChoice [Rule]
+               | RDelete Rule
+               | RInsert [Segment]
+               | RBoundary
+
+instance Show Rule where
+    show (RSeg rw) = "(RSeg " ++  show (fromMaybe sampleChar $ rw sampleChar)  ++ ")"
+        where
+          sampleChar = head $ readIPA defState "i"
+    show (RGroup grp) = "(RGroup " ++ show grp ++ ")"
+    show (RStar grp) = "(RStar " ++ show grp ++ ")"
+    show (ROpt grp) = "(ROpt " ++ show grp ++ ")"
+    show (RChoice grps) = "(RChoice {" ++ show grps ++ "}"
+    show (RBoundary) = "#"
 
 choice ps = foldl (<|>) Nothing ps
 
