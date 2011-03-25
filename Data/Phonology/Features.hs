@@ -152,6 +152,7 @@ diacritics = [ ("ʷ", "[+back,+round]")
              , ("̰", "[+voi,+cg,-sg]")
              , ("̃", "[+nas]")
              , ("̥", "[-voi]")
+             , ("̩", "[+syl]")
              ]
 
 macros = [ ("C", "[-syl]")
