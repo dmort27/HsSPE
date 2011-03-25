@@ -85,7 +85,7 @@ ipaString :: GenParser Char RuleState [Segment]
 ipaString = many (ipaSegment >>= ipaDiacritics)
 
 ipaSegment :: GenParser Char RuleState (String, FMatrix)
-ipaSegment = getState >>= \(segs, _, _) -> 
+ipaSegment = getState >>= \(segs, _, _) -> (char '#' >> return ("#", FMatrix Map.empty)) <|>
              (choice (map (\(l,fs) -> try $ string l >> return (l, fs)) segs))
 
 ipaDiacritics :: (String, FMatrix) -> GenParser Char RuleState (String, FMatrix)

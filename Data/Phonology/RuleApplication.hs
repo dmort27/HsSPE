@@ -15,6 +15,10 @@ applyRule rule form = x:(applyRule rule xs)
 applyRule' :: Rule -> ([Segment], [Segment]) -> Maybe ([Segment], [Segment])
 applyRule' (RSeg _) (xs, []) = Nothing
 applyRule' (RSeg rw) (xs, (y:ys)) = rw y >>= \y' -> return (xs++[y'], ys)
+applyRule' RBoundary (xs, []) = Nothing
+applyRule' RBoundary (xs, (y:ys))
+    | (fst y) == "#" = return (xs++[y], ys)
+    | otherwise = Nothing
 applyRule' (RGroup []) form = Just form
 applyRule' (RGroup ((ROpt r):rs)) form = applyRule' (RGroup (r:rs)) form <|> applyRule' (RGroup rs) form
 applyRule' (RGroup ((RStar r):rs)) form = applyRule' (RGroup rs) form 
