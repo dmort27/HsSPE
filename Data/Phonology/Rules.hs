@@ -2,6 +2,7 @@ module Data.Phonology.Rules ( Rewrite
                             , Rule(..)
                             , applyRule
                             , derivation
+                            , prettyDerivation
                             , toString
                             ) where
 
@@ -33,6 +34,14 @@ instance Show Rule where
 
 derivation :: [Segment] -> [Rule] -> [[Segment]]
 derivation form = scanl (\acc r -> applyRule r acc) form
+
+prettyDerivation :: [Segment] -> [Rule] -> [String]
+prettyDerivation form rs = ((head fms):) $ map (\(a,b) -> if a==b then "---" else b) $ zip fms (tail fms)
+    where fms = map toString $ derivation form rs
+
+maybeDerivation :: [Segment] -> [Rule] -> [Maybe String]
+maybeDerivation form rs = ((Just (head fms)):) $ map (\(a,b) -> if a==b then Nothing else Just b) $ zip fms (tail fms)
+    where fms = map toString $ derivation form rs
 
 applyRule :: Rule -> [Segment] -> [Segment]
 applyRule _ [] = []
