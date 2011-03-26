@@ -1,24 +1,25 @@
 module Data.Phonology.Features ( FValue
-                , FMatrix
-                , Segment
-                , RuleState
-                , (|>|)
-                , (|?|)
-                , flipFValue
-                , fMatrix
-                , readIPA
-                , ipaSegment
-                , ipaDiacritics
-                , segmentFromFeatures
-                , includeFts
-                , toFMatrixPairs
-                , diacriticFunctions
-                , defFeatures
-                , defSegments
-                , defMacros
-                , defDiacritics
-                , defState
-                ) where
+                               , FMatrix
+                               , Segment
+                               , RuleState
+                               , (|>|)
+                               , (|?|)
+                               , flipFValue
+                               , fMatrix
+                               , readIPA
+                               , ipaSegment
+                               , ipaDiacritics
+                               , segmentFromFeatures
+                               , includeFts
+                               , toFMatrixPairs
+                               , diacriticFunctions
+                               , defFeatures
+                               , defSegments
+                               , defMacros
+                               , defDiacritics
+                               , defState
+                               , mkRuleState
+                               ) where
 
 import Data.Maybe (fromJust)
 import Data.Map (Map)
@@ -158,6 +159,11 @@ defMacros = map (includeFts defFeatures) $ toFMatrixPairs macros
 defDiacritics = diacriticFunctions diacritics
 
 defState = (defSegments, defMacros, defDiacritics)
+
+mkRuleState segs macs dias fts = ( map (includeFts fts) $ toFMatrixPairs segs
+                                 , map (includeFts fts) $ toFMatrixPairs macs
+                                 , diacriticFunctions diacritics
+                                 )
 
 getDefMacro :: Char -> FMatrix
 getDefMacro m = fromJust $ lookup (m:[]) defMacros
