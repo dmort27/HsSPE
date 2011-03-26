@@ -1,5 +1,5 @@
-module Data.Phonology.Features ( FValue
-                               , FMatrix
+module Data.Phonology.Features ( FValue(..)
+                               , FMatrix(..)
                                , Segment
                                , RuleState
                                , (|>|)
@@ -70,8 +70,9 @@ type RuleState = ([Segment], [Segment], [(String, FMatrix -> FMatrix)])
 (|>|) :: FMatrix -> FMatrix -> FMatrix
 FMatrix fm2 |>| FMatrix fm1 = FMatrix $ Map.union fm1 fm2
 
--- | @a |?| b@ eturns true iff, for all feature specifications in @b@,
--- matching feature specifications are found in @a@.
+-- | Checks for matches between feature matrices. @a |?| b@ returns
+-- true iff, for all feature specifications in @b@, matching feature
+-- specifications are found in @a@.
 (|?|) :: FMatrix -> FMatrix -> Bool
 FMatrix comparandum |?| FMatrix comparison = 
                         Map.foldrWithKey 
