@@ -64,9 +64,14 @@ type RuleState = ([Segment], [Segment], [(String, FMatrix -> FMatrix)])
 --infixr 5 |>|
 --infixr 5 |?|
 
+-- | Updates an FMatrix. @a |>| b@ returns an 'FMatrix' identical to
+-- @a@ except for feature specifications where @a@ disagrees with @b@,
+-- which are returned as in @b@.
 (|>|) :: FMatrix -> FMatrix -> FMatrix
 FMatrix fm2 |>| FMatrix fm1 = FMatrix $ Map.union fm1 fm2
 
+-- | @a |?| b@ eturns true iff, for all feature specifications in @b@,
+-- matching feature specifications are found in @a@.
 (|?|) :: FMatrix -> FMatrix -> Bool
 FMatrix comparandum |?| FMatrix comparison = 
                         Map.foldrWithKey 
@@ -97,6 +102,8 @@ fValue = oneOf ("+-0" ++ ['α'..'ω']) >>= return . read . (:[])
 feature :: GenParser Char st (String, FValue)
 feature = spaces >> fValue >>= \v -> (fName >>= \k -> spaces >> return (k, v))
 
+-- | Give a 'RuleState' and a transcription as a 'String', returns the
+-- representation as a list of 'Segment's.
 readIPA :: RuleState -> String -> [Segment]
 readIPA (segs, macs, dias) input = case runParser ipaString (segs, macs, dias) "feature matrix" input of
                   Right fm -> fm
@@ -152,14 +159,23 @@ fmEditDistance (FMatrix fm1) (FMatrix fm2) =
 applyDiacritics :: [(String, FMatrix -> FMatrix)] -> Segment -> [Segment]
 applyDiacritics dias (s, fm) = map (\(dia, f) -> (s++dia, f fm)) dias
 
+-- | Default feature names.
+defFeatures :: [String]
 defFeatures = ["syl","son","cons","cont","delrel","lat","nas","voi","cg","sg","ant","cor","distr","hi","lo","back","round","tense"]
 
 defSegments = map (includeFts defFeatures) $ toFMatrixPairs segments
 defMacros = map (includeFts defFeatures) $ toFMatrixPairs macros
 defDiacritics = diacriticFunctions diacritics
 
+-- | Default 'RuleState' to be passed to parsers.
+defState :: RuleState
 defState = (defSegments, defMacros, defDiacritics)
 
+-- | Given segment, macro, and diacritic definitions as lists of
+-- ('String', 'String')s, and a list of active features as 'String's,
+-- returns a 'RuleState' that can be passed to rule and transcription
+-- parsers.
+mkRuleState :: [(String, String)] -> [(String, String)] -> [(String, String)] -> [String] -> RuleState
 mkRuleState segs macs dias fts = ( map (includeFts fts) $ toFMatrixPairs segs
                                  , map (includeFts fts) $ toFMatrixPairs macs
                                  , diacriticFunctions diacritics
