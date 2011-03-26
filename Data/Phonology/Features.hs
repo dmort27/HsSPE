@@ -61,8 +61,8 @@ fromFM (FMatrix fm) = fm
 type Segment = (String, FMatrix)
 type RuleState = ([Segment], [Segment], [(String, FMatrix -> FMatrix)])
 
-infixr 5 |>|
-infixr 5 |?|
+--infixr 5 |>|
+--infixr 5 |?|
 
 (|>|) :: FMatrix -> FMatrix -> FMatrix
 FMatrix fm2 |>| FMatrix fm1 = FMatrix $ Map.union fm1 fm2
