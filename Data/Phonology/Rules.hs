@@ -3,6 +3,7 @@ module Data.Phonology.Rules ( Rewrite
                             , applyRule
                             , derivation
                             , prettyDerivation
+                            , maybeDerivation
                             , toString
                             ) where
 
@@ -10,8 +11,6 @@ import Control.Applicative
 import Debug.Trace (trace)
 import Data.Maybe (fromMaybe)
 import Data.Phonology.Features
-
-type Rewrite = Segment -> Maybe Segment
 
 data Rule = RSeg Rewrite
                | RGroup [Rule]
@@ -32,13 +31,24 @@ instance Show Rule where
     show (RChoice grps) = "(RChoice {" ++ show grps ++ "}"
     show (RBoundary) = "#"
 
+type Rewrite = Segment -> Maybe Segment
+
+-- |The 'derivation' function yields the product of applying, in
+-- succession, a list of phonological rules. Results are returned as a
+-- list of lists of tuples of (String, FMatrix).
 derivation :: [Segment] -> [Rule] -> [[Segment]]
 derivation form = scanl (\acc r -> applyRule r acc) form
 
+-- |Like 'derivation', but returns a list of StringS. If the form is
+-- unchanged by the application of a rule, "---" is returned for that
+-- increment.
 prettyDerivation :: [Segment] -> [Rule] -> [String]
 prettyDerivation form rs = ((head fms):) $ map (\(a,b) -> if a==b then "---" else b) $ zip fms (tail fms)
     where fms = map toString $ derivation form rs
 
+-- |Like 'prettyDerivation', but returns a list of Maybe StringS. If
+-- the form is unchanged by the application of a rule, 'Nothing' is
+-- returned for that increment.
 maybeDerivation :: [Segment] -> [Rule] -> [Maybe String]
 maybeDerivation form rs = ((Just (head fms)):) $ map (\(a,b) -> if a==b then Nothing else Just b) $ zip fms (tail fms)
     where fms = map toString $ derivation form rs
