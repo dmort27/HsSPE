@@ -1,6 +1,7 @@
 module Data.Phonology.RuleParsers ( readRule
-                   , expandRule
-                   ) where
+                                  , readRuleV
+                                  , expandRule
+                                  ) where
 
 import Data.Maybe (fromJust, fromMaybe)
 import Data.List (nub)
@@ -12,18 +13,28 @@ import Control.Monad (foldM)
 import Text.ParserCombinators.Parsec
 import Generics.Pointless.Combinators ((><))
 
+-- | Expand a rule containing variables into the equivalent set of
+-- rules (as a list of strings).
 expandRule :: String -> [String]
-expandRule rule = foldr (\c acc -> concat [[replace c '+' r, replace c '-' r] | r <- acc]) [rule] (alphaVars rule)
+expandRule rule = foldr (\c acc -> concat [[replace c '+' r, replace c '-' r] | r <- acc]) 
+                  [rule] (alphaVars rule)
     where
       alphaVars :: String -> [Char]
-      alphaVars = nub . filter (`elem` ['α'..'ω'])
+      alphaVars = nub . filter (`elem` (['α'..'ω'] ++ ['A'..'Z']))
       replace :: Char -> Char -> String -> String
       replace c1 c2 = map (\x -> if x == c1 then c2 else x)
 
+-- | Parses a rule in string notation and returns a 'Rule'. Performs
+-- no expansion of alpha variables.
 readRule :: RuleState -> String -> Rule
 readRule st input = case runParser rule st "rule" input of
                       Right fm -> fm
                       Left e -> error $ show e
+
+-- | Parses a rule in string notation and returns all 'Rules' implied
+-- by expansion of variables.
+readRuleV :: RuleState -> String -> [Rule]
+readRuleV st = map (readRule st) . expandRule
 
 rule :: GenParser Char RuleState Rule
 rule = editPart >>= \t -> (ruleSlash >> environment >>= \(a, b) -> return (RGroup [a, t, b]))
