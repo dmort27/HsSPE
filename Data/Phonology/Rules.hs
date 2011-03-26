@@ -38,21 +38,21 @@ type Rewrite = Segment -> Maybe Segment
 derivation :: [Segment] -> [Rule] -> [[Segment]]
 derivation form = scanl (\acc r -> applyRule r acc) form
 
--- |Like 'derivation', but returns a list of 'String'S. If the form is
+-- |Like 'derivation', but returns a list of 'String's. If the form is
 -- unchanged by the application of a rule, \"---\" is returned for that
 -- increment.
 prettyDerivation :: [Segment] -> [Rule] -> [String]
 prettyDerivation form rs = ((head fms):) $ map (\(a,b) -> if a==b then "---" else b) $ zip fms (tail fms)
     where fms = map toString $ derivation form rs
 
--- |Like 'prettyDerivation', but returns a list of Maybe StringS. If
+-- |Like 'prettyDerivation', but returns a list of 'Maybe' 'String's. If
 -- the form is unchanged by the application of a rule, 'Nothing' is
 -- returned for that increment.
 maybeDerivation :: [Segment] -> [Rule] -> [Maybe String]
 maybeDerivation form rs = ((Just (head fms)):) $ map (\(a,b) -> if a==b then Nothing else Just b) $ zip fms (tail fms)
     where fms = map toString $ derivation form rs
 
--- |Returns the result of applying a rule to a form (a list of 'Segment'S).
+-- |Returns the result of applying a rule to a form (a list of 'Segment's).
 applyRule :: Rule -> [Segment] -> [Segment]
 applyRule _ [] = []
 applyRule rule form = x:(applyRule rule xs)
@@ -82,6 +82,6 @@ applyRule' (RDelete (RGroup (rw:rws))) (xs, (y:ys)) = applyRule' rw (xs, y:ys) >
 
 choice ps = foldl (<|>) Nothing ps
 
--- |Utility function for converting lists of 'Segment'S into 'String'S.
+-- |Utility function for converting lists of 'Segment's into 'String's.
 toString :: [Segment] -> String
 toString = concatMap fst
