@@ -87,6 +87,8 @@ applyRule _ [] = []
 applyRule rule form = x:(applyRule rule xs)
     where x:xs = maybe form (\(a,b) -> a++b) (applyRule' rule ([], form))
 
+-- Somewhere below, a mighty bug lurks.
+
 applyRule' :: Rule -> ([Segment], [Segment]) -> Maybe ([Segment], [Segment])
 applyRule' (RSeg _) (xs, []) = Nothing
 applyRule' (RSeg rw) (xs, (y:ys)) = rw y >>= \y' -> return (xs++[y'], ys)
