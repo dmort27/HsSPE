@@ -87,15 +87,7 @@ applyRule _ [] = []
 applyRule rule form = x:(applyRule rule xs)
     where x:xs = maybe form (\(a,b) -> a++b) (applyRule' rule ([], form))
 
--- Somewhere below, a mighty bug lurks.
-
 applyRule' :: Rule -> ([Segment], [Segment]) -> Maybe ([Segment], [Segment])
-applyRule' (RSeg _) (xs, []) = Nothing
-applyRule' (RSeg rw) (xs, (y:ys)) = rw y >>= \y' -> return (xs++[y'], ys)
-applyRule' RBoundary (xs, []) = Nothing
-applyRule' RBoundary (xs, (y:ys))
-    | (fst y) == "#" = return (xs++[y], ys)
-    | otherwise = Nothing
 applyRule' (RGroup []) form = Just form
 applyRule' (RGroup ((ROpt r):rs)) form = applyRule' (RGroup (r:rs)) form 
                                          <|> applyRule' (RGroup rs) form
@@ -104,9 +96,12 @@ applyRule' (RGroup ((RStar r):rs)) form = applyRule' (RGroup rs) form
                                           <|> applyRule' (RGroup (r:(RStar r):rs)) form
 applyRule' (RGroup ((RChoice cs):rs)) form = choice $ map (\c -> applyRule' (RGroup (c:rs)) form) cs
 applyRule' (RGroup (r:rs)) form = applyRule' r form >>= applyRule' (RGroup rs)
-applyRule' (RInsert segs) (xs, []) = Nothing
+applyRule' _ (_, []) = Nothing
+applyRule' (RSeg rw) (xs, (y:ys)) = rw y >>= \y' -> return (xs++[y'], ys)
+applyRule' RBoundary (xs, (y:ys))
+    | (fst y) == "#" = return (xs++[y], ys)
+    | otherwise = Nothing
 applyRule' (RInsert segs) (xs, ys) = return (xs++segs, ys)
-applyRule' (RDelete _) (_, []) = Nothing
 applyRule' (RDelete (RGroup [])) form = return form
 applyRule' (RDelete (RGroup (rw:rws))) (xs, (y:ys)) = applyRule' rw (xs, y:ys) >>= 
                                                     \_ -> applyRule' (RDelete (RGroup (rws))) (xs, ys)
