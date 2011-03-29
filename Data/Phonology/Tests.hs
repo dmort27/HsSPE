@@ -5,7 +5,7 @@ import Data.Phonology.Rules
 import Data.Phonology.RuleParsers
 
 r1 = readRule defState "[+cons]->[+voi]/[+voi]_"
-t1 = readIPA defState "appb"
+t1 = readIPA defState "appp"
 t2 = readIPA defState "#cbacabc#"
 
 rs = ["[-syl]->[+voi]/[+voi]_", "[-syl]->[-voi]/_#"]

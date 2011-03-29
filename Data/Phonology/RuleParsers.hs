@@ -127,7 +127,7 @@ envBoundary :: GenParser Char RuleState Rule
 envBoundary = char '#' >> return RBoundary
 
 envFMatrix :: GenParser Char RuleState Rule
-envFMatrix = fMatrix >>= \fm -> getState >>= \st -> return $ RSeg $ matchMatrix fm
+envFMatrix = fMatrix >>= \fm -> return $ RSeg $ matchMatrix fm
 
 envMacro :: GenParser Char RuleState Rule
 envMacro = getState >>= \st@(_, ms, _) -> 
