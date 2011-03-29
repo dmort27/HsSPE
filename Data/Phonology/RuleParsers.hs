@@ -9,7 +9,7 @@ import Data.List (nub)
 import Data.Phonology.Features
 import Data.Phonology.Rules
 
-import Control.Monad (foldM)
+import Control.Monad (foldM, mzero)
 import Text.ParserCombinators.Parsec
 import Generics.Pointless.Combinators ((><))
 
@@ -49,7 +49,7 @@ editFMatrix2FMatrix :: GenParser Char RuleState Rule
 editFMatrix2FMatrix = fMatrix >>= 
                       \fm1 -> (editArrow >> fMatrix >>= 
                                \fm2 -> getState >>= 
-                                       (\st -> (return (RSeg $ rewriteMatrix st ("", fm1) ("", fm2)))))
+                                       (\st -> (return (RSeg $ rewriteMatrix st fm1 fm2))))
 
 editLiteral2Literal :: GenParser Char RuleState Rule
 editLiteral2Literal = ipaSegment >>= ipaDiacritics >>= 
@@ -66,8 +66,7 @@ editLiteral2Zero = (many1 (ipaSegment >>= ipaDiacritics)) >>=
                    return . RDelete . RGroup . map (\seg -> RSeg (rewriteLit seg seg))
 
 editMatrix2Zero :: GenParser Char RuleState Rule
-editMatrix2Zero = getState >>= \st -> fMatrix >>= 
-                  \fm -> editArrow >> editZero >> return (RDelete $ RGroup [RSeg $ rewriteMatrix st ("", fm) ("", fm)])
+editMatrix2Zero = fMatrix >>= \fm -> editArrow >> editZero >> return (RDelete $ RGroup [RSeg $ matchMatrix fm])
 
 editZero :: GenParser Char RuleState Char
 editZero = oneOf "0∅"
@@ -77,13 +76,18 @@ rewriteAnyLit newSeg _ = Just newSeg
 
 rewriteLit :: Segment -> Segment -> Rewrite
 rewriteLit (s, fm) newSeg (s', fm')
-    | s' == s = Just newSeg
-    | otherwise = Nothing 
+    | s' == s = return newSeg
+    | otherwise = mzero 
 
-rewriteMatrix :: RuleState -> Segment -> Segment -> Rewrite
-rewriteMatrix (segs, _, dias) (_, fm) (_, fm') (s, fm'')
-    | fm'' |?| fm = Just $ segmentFromFeatures segs dias (fm'' |>| fm')
-    | otherwise = Nothing
+rewriteMatrix :: RuleState -> FMatrix -> FMatrix -> Rewrite
+rewriteMatrix (segs, _, dias) fm1 fm2 (s, fm)
+    | fm |?| fm1 = return $ segmentFromFeatures segs dias $ fm |>| fm2
+    | otherwise = mzero
+
+matchMatrix :: FMatrix -> Rewrite
+matchMatrix fm1 (s, fm)
+    | fm |?| fm1 = return (s, fm)
+    | otherwise = mzero
 
 ruleSlash :: GenParser Char RuleState ()
 ruleSlash = spaces >> string "/" >> spaces
@@ -123,14 +127,14 @@ envBoundary :: GenParser Char RuleState Rule
 envBoundary = char '#' >> return RBoundary
 
 envFMatrix :: GenParser Char RuleState Rule
-envFMatrix = fMatrix >>= \fm -> (getState >>= \st -> (return (RSeg $ rewriteMatrix st ("", fm) ("", fm))))
+envFMatrix = fMatrix >>= \fm -> getState >>= \st -> return $ RSeg $ matchMatrix fm
 
 envMacro :: GenParser Char RuleState Rule
 envMacro = getState >>= \st@(_, ms, _) -> 
            (oneOf (map (head . fst) ms) >>= 
                       \m -> (return (fromJust $ lookup (m:[]) ms) >>=
-                       \fm -> (return (RSeg $ rewriteMatrix st ("", fm) ("", fm)))))
+                       \fm -> (return (RSeg $ matchMatrix fm))))
 
 envIPASegment :: GenParser Char RuleState Rule
-envIPASegment = ipaSegment >>= ipaDiacritics >>= \seg -> return (RSeg $ rewriteLit seg seg)
+envIPASegment = ipaSegment >>= ipaDiacritics >>= \seg -> return $ RSeg $ rewriteLit seg seg
 

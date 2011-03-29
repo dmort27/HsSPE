@@ -7,6 +7,7 @@ module Data.Phonology.Features ( FValue(..)
                                , flipFValue
                                , fMatrix
                                , readIPA
+                               , readFMatrix
                                , ipaSegment
                                , ipaDiacritics
                                , segmentFromFeatures
@@ -74,11 +75,11 @@ FMatrix fm2 |>| FMatrix fm1 = FMatrix $ Map.union fm1 fm2
 -- true iff, for all feature specifications in @b@, matching feature
 -- specifications are found in @a@.
 (|?|) :: FMatrix -> FMatrix -> Bool
-FMatrix comparandum |?| FMatrix comparison = 
+FMatrix comparandum |?| FMatrix comparator = 
                         Map.foldrWithKey 
                                (\k v acc -> 
-                                    (Map.findWithDefault (flipFValue v) k comparandum) `elem` [Unspec, v]) 
-                           True comparison
+                                    (Map.findWithDefault (flipFValue v) k comparandum) `elem` [Unspec, v] && acc)
+                           True comparator
 
 flipFValue :: FValue -> FValue
 flipFValue Plus = Minus
