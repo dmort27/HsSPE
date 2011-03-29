@@ -98,6 +98,7 @@ applyRule' (RGroup ((RStar r):rs)) form = applyRule' (RGroup rs) form
                                           <|> applyRule' (RGroup (r:(RStar r):rs)) form
 applyRule' (RGroup ((RChoice cs):rs)) form = choice $ map (\c -> applyRule' (RGroup (c:rs)) form) cs
 applyRule' (RGroup (r:rs)) form = applyRule' r form >>= applyRule' (RGroup rs)
+applyRule' (RGroup []) form = return form
 applyRule' (RSeg rw) (xs, (y:ys)) = rw y >>= return . flip (,) ys . (xs++) . (:[])
 applyRule' RBoundary (xs, (y@("#", _):ys)) = return (xs++[y], ys)
 applyRule' RBoundary _ = mzero
@@ -106,6 +107,7 @@ applyRule' (RDelete (RGroup [])) form = return form
 applyRule' (RDelete (RGroup (rw:rws))) (xs, (y:ys)) = applyRule' rw (xs, y:ys) >>= 
                                                     \_ -> applyRule' (RDelete (RGroup (rws))) (xs, ys)
 applyRule' _ (_, []) = mzero
+applyRule' r form = error $ "No match for " ++ (show r) ++ " " ++ (show form) ++ "\n"
 
 -- | Takes a rule parser that performs variable expansion and a rule
 -- in string notation and applies the rule (in all of its expansions)
