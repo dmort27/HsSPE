@@ -117,7 +117,9 @@ envOpt :: GenParser Char RuleState Rule
 envOpt = envGroup >>= return . ROpt
 
 envManyN :: GenParser Char RuleState Rule
-envManyN = envGroup >>= \grp -> ((many1 digit) >>= \n -> return (RGroup $ (replicate (read n) grp) ++ [RStar grp]))
+envManyN = envGroup >>= 
+           \grp -> (many1 digit >>= 
+                    \n -> return (RGroup $ (replicate (read n) grp) ++ [RStar grp]))
 
 envChoice :: GenParser Char RuleState Rule
 envChoice = char '{' >> spaces >> sepBy (many1 envToken) (spaces >> char ',' >> spaces) >>= 
@@ -127,7 +129,7 @@ envBoundary :: GenParser Char RuleState Rule
 envBoundary = char '#' >> return RBoundary
 
 envFMatrix :: GenParser Char RuleState Rule
-envFMatrix = fMatrix >>= \fm -> return $ RSeg $ matchMatrix fm
+envFMatrix = fMatrix >>= return . RSeg . matchMatrix
 
 envMacro :: GenParser Char RuleState Rule
 envMacro = getState >>= \st@(_, ms, _) -> 
@@ -136,5 +138,6 @@ envMacro = getState >>= \st@(_, ms, _) ->
                        \fm -> (return (RSeg $ matchMatrix fm))))
 
 envIPASegment :: GenParser Char RuleState Rule
-envIPASegment = ipaSegment >>= ipaDiacritics >>= \seg -> return $ RSeg $ rewriteLit seg seg
+envIPASegment = ipaSegment >>= ipaDiacritics >>= 
+                \seg -> return $ RSeg $ rewriteLit seg seg
 
