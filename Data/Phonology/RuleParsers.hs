@@ -19,7 +19,7 @@ expandRule :: String -> [String]
 expandRule rule = foldr (\c acc -> concat [[replace c '+' r, replace c '-' r] | r <- acc]) 
                   [rule] (alphaVars rule)
     where
-      alphaVars :: String -> [Char]
+      alphaVars :: String -> String
       alphaVars = nub . filter (`elem` ['α'..'ω'])
       replace :: Char -> Char -> String -> String
       replace c1 c2 = map (\x -> if x == c1 then c2 else x)
@@ -55,7 +55,7 @@ editFMatrix2FMatrix :: GenParser Char RuleState Rule
 editFMatrix2FMatrix = fMatrix >>= 
                       \fm1 -> (editArrow >> fMatrix >>= 
                                \fm2 -> getState >>= 
-                                       (\st -> (return (RSeg $ rewriteMatrix st fm1 fm2))))
+                                       (\st -> return (RSeg $ rewriteMatrix st fm1 fm2)))
 
 editLiteral2Literal :: GenParser Char RuleState Rule
 editLiteral2Literal = ipaSegment >>= ipaDiacritics >>= 
@@ -63,14 +63,13 @@ editLiteral2Literal = ipaSegment >>= ipaDiacritics >>=
                                     \seg2 -> return (RSeg $ rewriteLit seg1 seg2))
 
 editZero2Literal :: GenParser Char RuleState Rule
-editZero2Literal = editZero >> editArrow >> (many1 (ipaSegment >>= ipaDiacritics)) >>= 
-                   return . RInsert
+editZero2Literal = fmap RInsert (editZero >> editArrow >> (many1 (ipaSegment >>= ipaDiacritics)))
 
 editLiteral2Zero :: GenParser Char RuleState Rule
-editLiteral2Zero = (many1 (ipaSegment >>= ipaDiacritics)) >>= 
-                   \segs -> editArrow >> editZero >> return segs >>=
-                   return . RDelete . RGroup . map (\seg -> RSeg (rewriteLit seg seg))
-
+editLiteral2Zero = many1 (ipaSegment >>= ipaDiacritics) >>= 
+                   \segs -> (fmap (RDelete . RGroup . map (\ seg -> RSeg (rewriteLit seg seg))) 
+                             (editArrow >> editZero >> return segs))
+                            
 editMatrix2Zero :: GenParser Char RuleState Rule
 editMatrix2Zero = fMatrix >>= 
                   \fm -> editArrow >> editZero >> return (RDelete $ RGroup [RSeg $ matchMatrix fm])
@@ -79,7 +78,7 @@ editMacro2Zero :: GenParser Char RuleState Rule
 editMacro2Zero = getState >>= \(_, ms, _) -> 
                  (oneOf (map (head . fst) ms) >>= 
                   \m -> editArrow >> editZero >> 
-                        return (fromJust $ lookup (m:[]) ms >>=
+                        return (fromJust $ lookup ([m]) ms >>=
                                 \fm -> (return (RDelete $ RGroup [RSeg $ matchMatrix fm]))))
 
 editZero :: GenParser Char RuleState Char
@@ -113,7 +112,7 @@ envTarget :: GenParser Char RuleState ()
 envTarget = string "_" >> return ()
 
 envPart :: GenParser Char RuleState Rule
-envPart = many envToken >>= return . RGroup
+envPart = fmap RGroup (many envToken)
 
 envToken :: GenParser Char RuleState Rule
 envToken = try envBoundary 
@@ -148,7 +147,7 @@ envFMatrix = fMatrix >>= return . RSeg . matchMatrix
 envMacro :: GenParser Char RuleState Rule
 envMacro = getState >>= \st@(_, ms, _) -> 
            (oneOf (map (head . fst) ms) >>= 
-                      \m -> (return (fromJust $ lookup (m:[]) ms) >>=
+                      \m -> (return (fromJust $ lookup ([m]) ms) >>=
                        \fm -> (return (RSeg $ matchMatrix fm))))
 
 envIPASegment :: GenParser Char RuleState Rule

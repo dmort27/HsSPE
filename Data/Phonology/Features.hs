@@ -42,18 +42,18 @@ instance Show FValue where
     show (Var s) = s
 instance Read FValue where
     readsPrec _ value =
-        tryParse ([('+', Plus), ('-', Minus), ('0',Unspec)] ++ [(s, Var (s:[])) | s <- ['α'..'ω']])
+        tryParse ([('+', Plus), ('-', Minus), ('0',Unspec)] ++ [(s, Var ([s])) | s <- ['α'..'ω']])
             where
               tryParse [] = []
               tryParse ((attempt, result):xs) =
-                  if (head value) == attempt
+                  if head value == attempt
                   then [(result, tail value)]
                   else tryParse xs
 
 data FMatrix = FMatrix (Map String FValue)
              deriving (Eq, Ord)
 instance Show FMatrix where
-    show (FMatrix fm) = (\x -> "[" ++ x ++ "]") $ intercalate "," $ map (\(k,v) -> (show v) ++ k) $ Map.toAscList fm
+    show (FMatrix fm) = (\x -> "[" ++ x ++ "]") $ intercalate "," $ map (\(k,v) -> show v ++ k) $ Map.toAscList fm
 
 fmapFM f (FMatrix fm) = FMatrix $ f fm
 
@@ -78,7 +78,7 @@ FMatrix fm2 |>| FMatrix fm1 = FMatrix $ Map.union fm1 fm2
 FMatrix comparandum |?| FMatrix comparator = 
                         Map.foldrWithKey 
                                (\k v acc -> 
-                                    (Map.findWithDefault (flipFValue v) k comparandum) `elem` [Unspec, v] && acc)
+                                    Map.findWithDefault (flipFValue v) k comparandum `elem` [Unspec, v] && acc)
                            True comparator
 
 flipFValue :: FValue -> FValue
@@ -93,7 +93,7 @@ readFMatrix input = case parse fMatrix "feature matrix" input of
 
 fMatrix :: GenParser Char st FMatrix
 fMatrix = char '[' >> spaces >> sepBy feature (char ',') >>= 
-          \fm -> spaces >> char ']' >> (return $ FMatrix $ Map.fromList fm)
+          \fm -> spaces >> char ']' >> return (FMatrix $ Map.fromList fm)
 
 fName :: GenParser Char st String
 fName = many (oneOf ['a'..'z'])
@@ -116,7 +116,7 @@ ipaString = many (ipaSegment >>= ipaDiacritics)
 
 ipaSegment :: GenParser Char RuleState (String, FMatrix)
 ipaSegment = getState >>= \(segs, _, _) -> (char '#' >> return ("#", FMatrix Map.empty)) <|>
-             (choice (map (\(l,fs) -> try $ string l >> return (l, fs)) segs))
+             choice (map (\(l,fs) -> try $ string l >> return (l, fs)) segs)
 
 ipaDiacritics :: (String, FMatrix) -> GenParser Char RuleState (String, FMatrix)
 ipaDiacritics (seg, fm) = getState >>= \(_, _, dias) -> 
@@ -126,8 +126,8 @@ ipaDiacritics (seg, fm) = getState >>= \(_, _, dias) ->
 toFMatrixPairs :: [(String, String)] -> [(String, FMatrix)]
 toFMatrixPairs segs = reverse $ sortBy (comparing (length . fst)) [(seg, readFMatrix fs) | (seg, fs) <- segs]
 
-diacriticFunctions :: [(String, String)] -> [(String, (FMatrix -> FMatrix))]
-diacriticFunctions dias = [(dia, \fm -> fm |>| (readFMatrix fts)) | (dia, fts) <- dias]
+diacriticFunctions :: [(String, String)] -> [(String, FMatrix -> FMatrix)]
+diacriticFunctions dias = [(dia, \fm -> fm |>| readFMatrix fts) | (dia, fts) <- dias]
 
 includeFts :: [String] -> (String, FMatrix) -> (String, FMatrix)
 includeFts fts = id >< fmapFM (Map.filterWithKey (\k _ -> k `elem` fts))
@@ -156,7 +156,7 @@ fmEditDistance :: FMatrix -> FMatrix -> Int
 fmEditDistance (FMatrix fm1) (FMatrix fm2) = 
     Map.size $ Map.union (difference fm1 fm2) (difference fm2 fm1)
         where
-          difference a b = Map.differenceWithKey (\_ a' b' -> if a' /= b' then Just a' else Nothing) a b
+          difference = Map.differenceWithKey (\_ a' b' -> if a' /= b' then Just a' else Nothing)
                                              
 applyDiacritics :: [(String, FMatrix -> FMatrix)] -> Segment -> [Segment]
 applyDiacritics dias (s, fm) = map (\(dia, f) -> (s++dia, f fm)) dias
