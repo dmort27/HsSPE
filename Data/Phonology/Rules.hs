@@ -44,20 +44,20 @@ type Rewrite = Segment -> Maybe Segment
 -- succession, a list of phonological rules. Results are returned as a
 -- list of lists of tuples of (String, FMatrix).
 derivation :: [Segment] -> [Rule] -> [[Segment]]
-derivation form = scanl (\acc r -> applyRule r acc) form
+derivation = scanl (flip applyRule)
 
 -- | Like @derivation@, but returns a list of 'String's. If the form is
 -- unchanged by the application of a rule, \"---\" is returned for that
 -- increment.
 prettyDerivation :: [Segment] -> [Rule] -> [String]
-prettyDerivation form rs = ((head fms):) $ map (\(a,b) -> if a==b then "---" else b) $ zip fms (tail fms)
+prettyDerivation form rs = (head fms :) $ map (\(a,b) -> if a==b then "---" else b) $ zip fms (tail fms)
     where fms = map toString $ derivation form rs
 
 -- | Like @prettyDerivation@, but returns a list of 'Maybe' 'String's. If
 -- the form is unchanged by the application of a rule, 'Nothing' is
 -- returned for that increment.
 maybeDerivation :: [Segment] -> [Rule] -> [Maybe String]
-maybeDerivation form rs = ((Just (head fms)):) $ map (\(a,b) -> if a==b then Nothing else Just b) $ zip fms (tail fms)
+maybeDerivation form rs = (Just (head fms) : ) $ map (\(a,b) -> if a==b then Nothing else Just b) $ zip fms (tail fms)
     where fms = map toString $ derivation form rs
 
 -- | The 'derivation' function yields the product of applying, in
@@ -65,14 +65,14 @@ maybeDerivation form rs = ((Just (head fms)):) $ map (\(a,b) -> if a==b then Not
 -- string notation and variable expansion is performed.  Results are
 -- returned as a list of lists of 'Segment's.
 derivationV :: (String -> [Rule]) -> [Segment] -> [String] -> [[Segment]]
-derivationV reader form = scanl (\acc r -> applyRuleV reader r acc) form
+derivationV reader = scanl (flip $ applyRuleV reader)
 
 -- | Like @derivationV@, but returns a list of 'String's. If the form is
 -- unchanged by the application of a rule, \"---\" is returned for that
 -- increment.
 prettyDerivationV :: (String -> [Rule]) -> [Segment] -> [String] -> [String]
 prettyDerivationV reader form rs = 
-    ((head fms):) 
+    (head fms :) 
     $ map (\(a,b) -> if a==b then "---" else b) $ zip fms (tail fms)
     where fms = map toString $ derivationV reader form rs
 
@@ -81,41 +81,41 @@ prettyDerivationV reader form rs =
 -- returned for that increment.
 maybeDerivationV :: (String -> [Rule]) -> [Segment] -> [String] -> [Maybe String]
 maybeDerivationV reader form rs = 
-    ((Just (head fms)):) $ map (\(a,b) -> if a==b then Nothing else Just b) $ zip fms (tail fms)
+    (Just (head fms) :) $ map (\(a,b) -> if a==b then Nothing else Just b) $ zip fms (tail fms)
     where fms = map toString $ derivationV reader form rs
 
 -- | Returns the result of applying a rule to a form (a list of 'Segment's).
 applyRule :: Rule -> [Segment] -> [Segment]
 applyRule _ [] = []
-applyRule rule form = x:(applyRule rule xs)
+applyRule rule form = x : applyRule rule xs
     where x:xs = maybe form (uncurry (++)) $ applyRule' rule ([], form)
 
 applyRule' :: Rule -> ([Segment], [Segment]) -> Maybe ([Segment], [Segment])
-applyRule' (RGroup ((ROpt r):rs)) form = applyRule' (RGroup (r:rs)) form 
+applyRule' (RGroup (ROpt r : rs)) form = applyRule' (RGroup (r:rs)) form 
                                          <|> applyRule' (RGroup rs) form
-applyRule' (RGroup ((RStar r):rs)) form = applyRule' (RGroup rs) form 
+applyRule' (RGroup (RStar r : rs)) form = applyRule' (RGroup rs) form 
                                           <|> applyRule' (RGroup (r:rs)) form
-                                          <|> applyRule' (RGroup (r:(RStar r):rs)) form
-applyRule' (RGroup ((RChoice cs):rs)) form = choice $ map (\c -> applyRule' (RGroup (c:rs)) form) cs
+                                          <|> applyRule' (RGroup (r : RStar r : rs)) form
+applyRule' (RGroup (RChoice cs : rs)) form = choice $ map (\c -> applyRule' (RGroup (c:rs)) form) cs
 applyRule' (RGroup (r:rs)) form = applyRule' r form >>= applyRule' (RGroup rs)
 applyRule' (RGroup []) form = return form
-applyRule' (RSeg rw) (xs, (y:ys)) = rw y >>= return . flip (,) ys . (xs++) . (:[])
-applyRule' RBoundary (xs, (y@("#", _):ys)) = return (xs++[y], ys)
+applyRule' (RSeg rw) (xs, y:ys) = fmap (flip (,) ys . (xs++) . (:[])) (rw y)
+applyRule' RBoundary (xs, y@("#", _):ys) = return (xs++[y], ys)
 applyRule' RBoundary _ = mzero
 applyRule' (RInsert segs) (xs, ys) = return (xs++segs, ys)
 applyRule' (RDelete (RGroup [])) form = return form
-applyRule' (RDelete (RGroup (rw:rws))) (xs, (y:ys)) = applyRule' rw (xs, y:ys) >>= 
-                                                    \_ -> applyRule' (RDelete (RGroup (rws))) (xs, ys)
+applyRule' (RDelete (RGroup (rw:rws))) (xs, y:ys) = applyRule' rw (xs, y:ys) >>= 
+                                                    \_ -> applyRule' (RDelete (RGroup rws)) (xs, ys)
 applyRule' _ (_, []) = mzero
-applyRule' r form = error $ "No match for " ++ (show r) ++ " " ++ (show form) ++ "\n"
+applyRule' r form = error $ "No match for " ++ show r ++ " " ++ show form ++ "\n"
 
 -- | Takes a rule parser that performs variable expansion and a rule
 -- in string notation and applies the rule (in all of its expansions)
 -- to a list of 'Segment's, returning the result.
 applyRuleV :: (String -> [Rule]) -> String -> [Segment] -> [Segment]
-applyRuleV reader rule form = foldr (\r acc -> applyRule r acc) form $ reader rule
+applyRuleV reader rule form = foldr applyRule form $ reader rule
 
-choice ps = foldl (<|>) mzero ps
+choice = foldl (<|>) mzero
 
 -- |Utility function for converting lists of 'Segment's into 'String's.
 toString :: [Segment] -> String
