@@ -20,7 +20,7 @@ expandRule rule = foldr (\c acc -> concat [[replace c '+' r, replace c '-' r] | 
                   [rule] (alphaVars rule)
     where
       alphaVars :: String -> [Char]
-      alphaVars = nub . filter (`elem` (['α'..'ω'] ++ ['A'..'Z']))
+      alphaVars = nub . filter (`elem` ['α'..'ω'])
       replace :: Char -> Char -> String -> String
       replace c1 c2 = map (\x -> if x == c1 then c2 else x)
 
@@ -40,7 +40,13 @@ rule :: GenParser Char RuleState Rule
 rule = editPart >>= \t -> (ruleSlash >> environment >>= \(a, b) -> return (RGroup [a, t, b]))
 
 editPart :: GenParser Char RuleState Rule
-editPart = choice $ map try [editZero2Literal, editLiteral2Zero, editMatrix2Zero, editFMatrix2FMatrix, editLiteral2Literal]
+editPart = choice $ map try [ editZero2Literal
+                            , editLiteral2Zero
+                            , editMatrix2Zero
+                            , editFMatrix2FMatrix
+                            , editLiteral2Literal
+                            , editMacro2Zero
+                            ]
 
 editArrow :: GenParser Char RuleState ()
 editArrow = spaces >> (string "->" <|> string "→") >> spaces
@@ -66,7 +72,15 @@ editLiteral2Zero = (many1 (ipaSegment >>= ipaDiacritics)) >>=
                    return . RDelete . RGroup . map (\seg -> RSeg (rewriteLit seg seg))
 
 editMatrix2Zero :: GenParser Char RuleState Rule
-editMatrix2Zero = fMatrix >>= \fm -> editArrow >> editZero >> return (RDelete $ RGroup [RSeg $ matchMatrix fm])
+editMatrix2Zero = fMatrix >>= 
+                  \fm -> editArrow >> editZero >> return (RDelete $ RGroup [RSeg $ matchMatrix fm])
+
+editMacro2Zero :: GenParser Char RuleState Rule
+editMacro2Zero = getState >>= \(_, ms, _) -> 
+                 (oneOf (map (head . fst) ms) >>= 
+                  \m -> editArrow >> editZero >> 
+                        return (fromJust $ lookup (m:[]) ms >>=
+                                \fm -> (return (RDelete $ RGroup [RSeg $ matchMatrix fm]))))
 
 editZero :: GenParser Char RuleState Char
 editZero = oneOf "0∅"
