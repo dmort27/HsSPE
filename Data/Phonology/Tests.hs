@@ -5,12 +5,9 @@ import Data.Phonology.Rules
 import Data.Phonology.RuleParsers
 
 r1 = readRule defState "[+cons]->[+voi]/[+voi]_"
-t1 = readIPA defState "#bp#"
+t1 = readIPA defState "#ampakda#"
 t2 = readIPA defState "#cbacabc#"
 
-rs = ["[-syl]->[Avoi]/[-syl,Avoi]_", "[-syl]->[-voi]/_#"]
-rs' = ["a->b/b_","b->a/a_"]
-
-simple = applyRule (readRule defState "[-syl]->[+voi]/[+voi]_") (readIPA defState "u")
+rs = ["[-syl,-son]->[αvoi]/[-syl,αvoi]_", "0->a/C_C", "C -> 0 / _#"]
 
 main = prettyDerivationV (readRuleV defState) t1 rs
