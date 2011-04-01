@@ -6,7 +6,7 @@ module Data.Phonology.RuleParsers ( readRule
 import Data.Maybe (fromJust, fromMaybe)
 import Data.List (nub)
 
-import Data.Phonology.Features
+import Data.Phonology.Representations
 import Data.Phonology.Rules
 
 import Control.Monad (foldM, mzero)

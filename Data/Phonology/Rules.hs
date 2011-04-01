@@ -15,7 +15,7 @@ import Debug.Trace
 import Control.Applicative
 import Control.Monad (mzero)
 import Data.Maybe (fromMaybe)
-import Data.Phonology.Features
+import Data.Phonology.Representations
 import Generics.Pointless.MonadCombinators
 import Generics.Pointless.Combinators ((?))
 

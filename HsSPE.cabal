@@ -13,4 +13,4 @@ Library
   Build-Depends:
    base, parsec, pointless-haskell, containers
   Exposed-modules:
-    Data.Phonology.Features, Data.Phonology.Rules, Data.Phonology.RuleParsers
+    Data.Phonology.Representations, Data.Phonology.Rules, Data.Phonology.RuleParsers
