@@ -1,6 +1,6 @@
 module Data.Phonology.Tests where
 
-import Data.Phonology.Features
+import Data.Phonology.Representations
 import Data.Phonology.Rules
 import Data.Phonology.RuleParsers
 
