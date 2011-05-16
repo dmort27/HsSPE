@@ -81,8 +81,11 @@ prettyDerivationV reader form rs =
 -- returned for that increment.
 maybeDerivationV :: (String -> [Rule]) -> [Segment] -> [String] -> [Maybe String]
 maybeDerivationV reader form rs = 
-    (Just (head fms) :) $ map (\(a,b) -> if a==b then Nothing else Just b) $ zip fms (tail fms)
-    where fms = map toString $ derivationV reader form rs
+    (++[Just sr]) $ (Just (head fms) :) $ map (\(a,b) -> if a==b then Nothing else Just b) $ zip fms (tail fms)
+        where 
+          dv = derivationV reader form rs
+          fms = map toString dv
+          sr = toString $ last dv
 
 -- | Returns the result of applying a rule to a form (a list of 'Segment's).
 applyRule :: Rule -> [Segment] -> [Segment]
