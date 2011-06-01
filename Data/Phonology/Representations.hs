@@ -76,7 +76,7 @@ FMatrix fm2 |>| FMatrix fm1 = FMatrix $ Map.union fm1 fm2
 -- specifications are found in @a@.
 (|?|) :: FMatrix -> FMatrix -> Bool
 FMatrix comparandum |?| FMatrix comparator = 
-                        Map.foldrWithKey 
+                        Map.foldWithKey 
                                (\k v acc -> 
                                     Map.findWithDefault (flipFValue v) k comparandum `elem` [Unspec, v] && acc)
                            True comparator
