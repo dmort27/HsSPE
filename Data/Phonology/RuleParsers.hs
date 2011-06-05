@@ -1,5 +1,7 @@
 module Data.Phonology.RuleParsers ( readRule
+                                  , testRule
                                   , readRuleV
+                                  , testRuleV
                                   , expandRule
                                   ) where
 
@@ -31,10 +33,18 @@ readRule st input = case runParser rule st "rule" input of
                       Right fm -> fm
                       Left e -> error $ show e
 
+testRule :: RuleState -> String -> Bool
+testRule st input = case runParser rule st "rule" input of
+                      Right fm -> True
+                      Left e -> False
+
 -- | Parses a rule in string notation and returns all 'Rules' implied
 -- by expansion of variables.
 readRuleV :: RuleState -> String -> [Rule]
 readRuleV st = map (readRule st) . expandRule
+
+testRuleV :: RuleState -> String -> [Bool]
+testRuleV st = map (testRule st) . expandRule
 
 rule :: GenParser Char RuleState Rule
 rule = editPart >>= \t -> (ruleSlash >> environment >>= \(a, b) -> return (RGroup [a, t, b]))

@@ -7,6 +7,7 @@ module Data.Phonology.Representations ( FValue(..)
                                       , flipFValue
                                       , fMatrix
                                       , readIPA
+                                      , readableIPA
                                       , readFMatrix
                                       , ipaSegment
                                       , ipaDiacritics
@@ -110,6 +111,11 @@ readIPA :: RuleState -> String -> [Segment]
 readIPA (segs, macs, dias) input = case runParser ipaString (segs, macs, dias) "feature matrix" input of
                   Right fm -> fm
                   Left e -> error $ show e
+
+readableIPA :: RuleState -> String -> Bool
+readableIPA (segs, macs, dias) input = case runParser ipaString (segs, macs, dias) "feature matrix" input of
+                  Right fm -> True
+                  Left e -> False
 
 ipaString :: GenParser Char RuleState [Segment]
 ipaString = many (ipaSegment >>= ipaDiacritics)
