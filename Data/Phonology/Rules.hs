@@ -99,7 +99,6 @@ applyRule' (RGroup (ROpt r : rs)) form = applyRule' (RGroup (r:rs)) form
 applyRule' (RGroup (RStar r : rs)) form = applyRule' (RGroup (r : RStar r : rs)) form
                                           <|> applyRule' (RGroup (r:rs)) form
                                           <|> applyRule' (RGroup rs) form
-                                          
 applyRule' (RGroup (RChoice cs : rs)) form = choice $ map (\c -> applyRule' (RGroup (c:rs)) form) cs
 applyRule' (RGroup (r:rs)) form = applyRule' r form >>= applyRule' (RGroup rs)
 applyRule' (RGroup []) form = return form
