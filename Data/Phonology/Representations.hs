@@ -268,6 +268,7 @@ segments = [ ("p","[-syl,-son,+cons,-cont,-delrel,-lat,-nas,-voi,-cg,-sg,+ant,+l
            , ("ŋ","[-syl,+son,+cons,-cont,-delrel,-lat,+nas,+voi,-cg,-sg,-ant,-lab,-cor,0distr,+hi,-lo,+back,-round,0tense,-long]")
            , ("ɴ","[-syl,+son,+cons,-cont,-delrel,-lat,+nas,+voi,-cg,-sg,-ant,-lab,-cor,0distr,-hi,-lo,+back,-round,0tense,-long]")
            , ("ɹ","[-syl,+son,-cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-lab,+cor,-distr,+hi,-lo,+back,+round,0tense,-long]")
+           , ("r","[-syl,+son,+cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-lab,+cor,-distr,+hi,-lo,+back,+round,0tense,-long]")
            , ("ɻ","[-syl,+son,-cons,+cont,-delrel,-lat,-nas,+voi,-cg,-sg,-ant,-lab,+cor,-distr,-hi,-lo,-back,-round,0tense,-long]")
            , ("l","[-syl,+son,+cons,+cont,-delrel,+lat,-nas,+voi,-cg,-sg,+ant,-lab,+cor,-distr,-hi,-lo,-back,-round,0tense,-long]")
            , ("l̪","[-syl,+son,+cons,+cont,-delrel,+lat,-nas,+voi,-cg,-sg,+ant,-lab,+cor,+distr,-hi,-lo,-back,-round,0tense,-long]")
